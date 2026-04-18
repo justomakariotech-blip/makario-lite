@@ -23,7 +23,7 @@
   --mono:'SF Mono','Fira Code',ui-monospace,'Courier New',monospace;
   --sw:224px
 }
-body{font-family:var(--font);background:var(--paper-off);color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased}
+body{font-family:var(--font);background:var(--paper-off);color:var(--ink);min-height:100dvh;-webkit-font-smoothing:antialiased}
 
 /* ── SETUP & LOGIN (full screen overlay) ── */
 #setup-view,

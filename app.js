@@ -5,9 +5,8 @@
    ═══════════════════════════════════════════════════════════ */
 
 /* ═══ SUPABASE INIT ═══ */
-/* FUTURO: reemplazar con credenciales del proyecto Macario-Lite */
-const SUPABASE_URL = 'REPLACE_WITH_PROJECT_URL';
-const SUPABASE_KEY = 'REPLACE_WITH_ANON_KEY';
+const SUPABASE_URL = 'https://hqnibqvjwficlwxgtoki.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhxbmlicXZqd2ZpY2x3eGd0b2tpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0ODAxMjIsImV4cCI6MjA5MjA1NjEyMn0.JaukyUf4yltRYv4gLk5iDt7KweKajlgj8ZXr3KAsfIM';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ═══ CONSTANTS ═══ */
@@ -297,11 +296,15 @@ async function doLogin() {
   const email = $('lu').value.trim();
   const pass = $('lp').value;
   if (!email || !pass) { $('lerr').classList.add('on'); return; }
-  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
-  if (error) { $('lerr').classList.add('on'); return; }
-  await loadProfile(data.user.id);
-  await logActivity('login', `${cu?.name || email} inició sesión`);
-  showApp();
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+    if (error) { $('lerr').classList.add('on'); return; }
+    await loadProfile(data.user.id);
+    await logActivity('login', `${cu?.name || email} inició sesión`);
+    showApp();
+  } catch (e) {
+    showToast('Error de conexión. Verificá tu internet.', 'error', 5000);
+  }
 }
 
 async function doLogout() {
@@ -509,10 +512,11 @@ const NAV = {
 
 async function buildNav() {
   const cfg = NAV[cu.role] || NAV.cnc;
+  /* NULL leida_por = nunca leída; usar or() para capturar ambos casos */
   const { count: notifCount } = await sb.from('notifications')
     .select('*', { count: 'exact', head: true })
     .contains('para_roles', [cu.role])
-    .not('leida_por', 'cs', `{${cu.id}}`);
+    .or(`leida_por.is.null,leida_por.not.cs.{${cu.id}}`);
 
   $('sbnav').innerHTML = cfg.map(item => {
     if (item.sec) return `<div class="nav-sec">${item.sec}</div>`;
@@ -570,9 +574,9 @@ async function renderDash() {
 
   const today = new Date().toISOString().split('T')[0];
   const [ordersRes, stockRes, prodRes] = await Promise.all([
-    cached('orders', () => sb.from('orders').select('*')),
-    cached('stock', () => sb.from('stock').select('*')),
-    sb.from('prod_logs').select('*').gte('created_at', today + 'T00:00:00')
+    cached('orders', () => sb.from('orders').select('id,estado,numero,cliente,productos,created_at')),
+    cached('stock', () => sb.from('stock').select('id,nombre,cantidad,min_warn,min_crit,categoria,unidad')),
+    sb.from('prod_logs').select('id,unidades,unidades_falla,created_at').gte('created_at', today + 'T00:00:00')
   ]);
 
   const orders = ordersRes.data || [];
@@ -632,7 +636,7 @@ async function renderVentas() {
   const estado = $('f-estado')?.value || '';
   const q = $('f-q')?.value?.toLowerCase() || '';
 
-  let query = sb.from('orders').select('*').order('created_at', { ascending: false });
+  let query = sb.from('orders').select('id,numero,canal,subcanal,cliente,productos,estado,prioridad,fuente,created_at').order('created_at', { ascending: false });
   if (canal) query = query.eq('canal', canal);
   if (estado) query = query.eq('estado', estado);
 
@@ -867,7 +871,7 @@ function updateStockActions() {
 
 async function renderMaterias() {
   showLoading('stock-materias-body');
-  const { data, error } = await sb.from('stock').select('*').order('categoria').order('nombre');
+  const { data, error } = await sb.from('stock').select('id,nombre,categoria,unidad,cantidad,min_warn,min_crit').order('categoria').order('nombre');
   if (error) { $('stock-materias-body').innerHTML = '<div style="padding:20px;color:var(--ink-muted)">Error al cargar stock.</div>'; return; }
   const items = data || [];
 
@@ -907,7 +911,7 @@ async function renderMaterias() {
 
 async function renderTerminados() {
   showLoading('stock-terminados-body');
-  const { data, error } = await sb.from('finished_products').select('*').order('categoria').order('nombre');
+  const { data, error } = await sb.from('finished_products').select('id,nombre,sku,categoria,stock_actual,stock_minimo').order('categoria').order('nombre');
   if (error) { $('stock-terminados-body').innerHTML = '<div style="padding:20px;color:var(--ink-muted)">Error al cargar productos terminados.</div>'; return; }
   const items = data || [];
 
@@ -1115,7 +1119,7 @@ async function submitEditFinishedProduct(id) {
    ═══════════════════════════════════════════════════════════ */
 async function renderProduccion() {
   showLoading('produccion-body');
-  const { data, error } = await sb.from('prod_logs').select('*').order('created_at', { ascending: false }).limit(50);
+  const { data, error } = await sb.from('prod_logs').select('id,modelo,unidades,unidades_falla,sector,notas,usuario_nombre,created_at').order('created_at', { ascending: false }).limit(50);
   if (error) { $('produccion-body').innerHTML = '<div style="padding:20px;color:var(--ink-muted)">Error al cargar registros.</div>'; return; }
   const logs = data || [];
 
@@ -1217,7 +1221,7 @@ async function submitProd() {
 async function renderNotifs() {
   showLoading('notifs-body');
   const { data } = await sb.from('notifications')
-    .select('*')
+    .select('id,tipo,titulo,mensaje,para_roles,leida_por,created_at')
     .contains('para_roles', [cu.role])
     .order('created_at', { ascending: false })
     .limit(50);
@@ -1270,7 +1274,7 @@ async function renderConfig() {
     return;
   }
   showLoading('config-body');
-  const { data: users } = await sb.from('profiles').select('*').order('name');
+  const { data: users } = await sb.from('profiles').select('id,name,username,role,area,active').order('name');
 
   $('config-body').innerHTML = `
     <div class="card">
