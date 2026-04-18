@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Macario Lite · Sistema de Gestión</title>
+<meta name="theme-color" content="#0A0A0A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Macario Lite">
+<meta name="description" content="Sistema de Gestión Operativa — Justo Makario Home">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.svg">
+<link rel="icon" href="icon-192.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- SETUP (primera vez, sin usuarios) -->
+<div id="setup-view" style="display:none">
+  <div class="lg-grid"></div><div class="lg-dots"></div><div class="lg-scan"></div>
+  <div class="lg-corner tl"></div><div class="lg-corner tr"></div>
+  <div class="lg-corner bl"></div><div class="lg-corner br"></div>
+  <div class="lg-card">
+    <div class="lcc tl"></div><div class="lcc tr"></div>
+    <div class="lcc bl"></div><div class="lcc br"></div>
+    <div class="lg-logo">
+      <svg width="210" height="82" viewBox="0 0 210 82" fill="none">
+        <text x="105" y="34" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-weight="900" font-size="30" letter-spacing="-1.5" fill="#0A0A0A">JUSTO</text>
+        <text x="105" y="62" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-weight="900" font-size="30" letter-spacing="-1.5" fill="#0A0A0A">MAKARIO</text>
+        <text x="105" y="79" text-anchor="middle" font-family="Georgia,'Times New Roman',serif" font-style="italic" font-size="17" fill="#555">Home</text>
+        <text x="175" y="34" font-family="Georgia,serif" font-size="11" fill="#888">®</text>
+      </svg>
+    </div>
+    <div class="lg-tag"><div class="lg-line"></div><span class="lg-label">Configuración Inicial</span><div class="lg-line"></div></div>
+    <div class="fi"><label>Nombre</label><input class="fi-inp" type="text" id="setup-name" placeholder="Ej: Sebastián"></div>
+    <div class="fi"><label>Username</label><input class="fi-inp" type="text" id="setup-username" placeholder="Ej: sebastian"></div>
+    <div class="fi"><label>Email</label><input class="fi-inp" type="email" id="setup-email" placeholder="email@empresa.com"></div>
+    <div class="fi"><label>Contraseña</label><input class="fi-inp" type="password" id="setup-pass" placeholder="Mínimo 6 caracteres"></div>
+    <button class="btn-p" id="setup-btn" onclick="doSetup()">CREAR CUENTA OWNER</button>
+    <div class="lg-err" id="setup-err"></div>
+    <div class="lg-foot">Macario Lite 1.0 · Primera configuración</div>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div id="login-view" style="display:none">
+  <div class="lg-grid"></div><div class="lg-dots"></div><div class="lg-scan"></div>
+  <div class="lg-corner tl"></div><div class="lg-corner tr"></div>
+  <div class="lg-corner bl"></div><div class="lg-corner br"></div>
+  <div class="lg-card">
+    <div class="lcc tl"></div><div class="lcc tr"></div>
+    <div class="lcc bl"></div><div class="lcc br"></div>
+    <div class="lg-logo">
+      <svg width="210" height="82" viewBox="0 0 210 82" fill="none">
+        <text x="105" y="34" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-weight="900" font-size="30" letter-spacing="-1.5" fill="#0A0A0A">JUSTO</text>
+        <text x="105" y="62" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-weight="900" font-size="30" letter-spacing="-1.5" fill="#0A0A0A">MAKARIO</text>
+        <text x="105" y="79" text-anchor="middle" font-family="Georgia,'Times New Roman',serif" font-style="italic" font-size="17" fill="#555">Home</text>
+        <text x="175" y="34" font-family="Georgia,serif" font-size="11" fill="#888">®</text>
+      </svg>
+    </div>
+    <div class="lg-tag"><div class="lg-line"></div><span class="lg-label">Sistema de Gestión Interna</span><div class="lg-line"></div></div>
+    <div class="fi"><label>Email</label><input class="fi-inp" type="email" id="lu" placeholder="email@empresa.com" autocomplete="email"></div>
+    <div class="fi"><label>Contraseña</label><input class="fi-inp" type="password" id="lp" placeholder="••••••••" autocomplete="current-password"></div>
+    <button class="btn-p" onclick="doLogin()">Ingresar al Sistema →</button>
+    <div class="lg-err" id="lerr">Email o contraseña incorrectos.</div>
+    <div class="lg-foot">Macario Lite 1.0 · Uso interno exclusivo</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-view" style="display:none">
+  <div class="mobile-header" id="mobile-header">
+    <button class="sb-toggle" id="sb-toggle" onclick="toggleSidebar()">☰</button>
+    <span class="mobile-title">MACARIO</span>
+  </div>
+  <div class="sb-overlay" id="sb-overlay" onclick="closeSidebar()"></div>
+  <aside id="sidebar">
+    <div class="sb-logo">
+      <svg width="152" height="58" viewBox="0 0 152 58" fill="none">
+        <text x="76" y="24" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-weight="900" font-size="20" letter-spacing="-1" fill="#0A0A0A">JUSTO</text>
+        <text x="76" y="43" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-weight="900" font-size="20" letter-spacing="-1" fill="#0A0A0A">MAKARIO</text>
+        <text x="76" y="56" text-anchor="middle" font-family="Georgia,'Times New Roman',serif" font-style="italic" font-size="13" fill="#666">Home</text>
+        <text x="120" y="24" font-family="Georgia,serif" font-size="9" fill="#999">®</text>
+      </svg>
+    </div>
+    <nav class="sb-nav" id="sbnav"></nav>
+    <div class="sb-user">
+      <div class="u-row"><div class="u-av" id="uav">--</div><div><div class="u-nm" id="unm">--</div><div class="u-rl" id="url2">--</div></div></div>
+      <button class="btn-lo" onclick="doLogout()">Cerrar Sesión</button>
+    </div>
+  </aside>
+  <main id="content">
+
+    <!-- DASHBOARD -->
+    <div class="pg" id="pg-dashboard">
+      <div class="pg-hd">
+        <div><div class="pg-ti">Dashboard</div><div class="pg-su">Métricas y resumen operativo</div></div>
+        <div style="text-align:right"><div class="live"><div class="ld"></div>En vivo</div><div class="ts" id="dts"></div></div>
+      </div>
+      <div id="dash-body"></div>
+    </div>
+
+    <!-- VENTAS -->
+    <div class="pg" id="pg-ventas">
+      <div class="pg-hd">
+        <div><div class="pg-ti">Ventas</div><div class="pg-su">Registro de pedidos</div></div>
+        <button class="btn" onclick="openNewOrder()">+ Nuevo Pedido</button>
+      </div>
+      <div class="fb" id="vfb">
+        <select class="fi-inp" id="f-canal" onchange="renderVentas()">
+          <option value="">Todos los canales</option>
+          <option value="mercadolibre">MercadoLibre</option>
+          <option value="tiendaweb">Tienda Web</option>
+          <option value="mayoristas">Mayoristas</option>
+          <option value="whatsapp">WhatsApp</option>
+          <option value="instagram">Instagram</option>
+        </select>
+        <select class="fi-inp" id="f-estado" onchange="renderVentas()">
+          <option value="">Todos los estados</option>
+          <option value="pendiente">Pendiente</option>
+          <option value="en_produccion">En producción</option>
+          <option value="listo_despacho">Listo para despacho</option>
+          <option value="despachado">Despachado</option>
+          <option value="entregado">Entregado</option>
+          <option value="cancelado">Cancelado</option>
+        </select>
+        <input type="text" class="fi-inp" id="f-q" placeholder="Buscar por número, cliente..." oninput="renderVentas()">
+        <button class="btn-ghost" onclick="clearFilters()">Limpiar</button>
+      </div>
+      <div class="card" id="ventas-body"></div>
+    </div>
+
+    <!-- STOCK — dos sub-tabs: Materias Primas + Productos Terminados -->
+    <div class="pg" id="pg-stock">
+      <div class="pg-hd">
+        <div><div class="pg-ti">Stock</div><div class="pg-su">Materias primas y productos terminados</div></div>
+        <div style="display:flex;gap:10px" id="stock-actions">
+          <!-- botones renderizados por JS según sub-tab activo -->
+        </div>
+      </div>
+      <div class="tabs" id="stock-tabs">
+        <button class="tab active" onclick="switchStockTab('materias')">Materias Primas</button>
+        <button class="tab" onclick="switchStockTab('terminados')">Productos Terminados</button>
+      </div>
+      <div id="stock-materias-body"></div>
+      <div id="stock-terminados-body" style="display:none"></div>
+    </div>
+
+    <!-- PRODUCCIÓN -->
+    <div class="pg" id="pg-produccion">
+      <div class="pg-hd">
+        <div><div class="pg-ti">Producción</div><div class="pg-su">Registro de producción diaria</div></div>
+        <button class="btn" onclick="openRegisterProd()">+ Registrar Producción</button>
+      </div>
+      <div id="produccion-body"></div>
+    </div>
+
+    <!-- NOTIFICACIONES -->
+    <div class="pg" id="pg-notificaciones">
+      <div class="pg-hd">
+        <div><div class="pg-ti">Notificaciones</div><div class="pg-su">Alertas e informes del sistema</div></div>
+        <button class="btn-ghost" onclick="markAllRead()">Marcar todo leído</button>
+      </div>
+      <div class="card" id="notifs-body"></div>
+    </div>
+
+    <!-- CONFIG -->
+    <div class="pg" id="pg-config">
+      <div class="pg-hd"><div><div class="pg-ti">Configuración</div><div class="pg-su">Usuarios e integraciones</div></div></div>
+      <div id="config-body"></div>
+    </div>
+
+    <!-- MI PERFIL -->
+    <div class="pg" id="pg-mi-perfil">
+      <div class="pg-hd"><div><div class="pg-ti">Mi Perfil</div><div class="pg-su">Datos de tu cuenta</div></div></div>
+      <div id="mi-perfil-body"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ═══════════════════ MODALS ═══════════════════ -->
+
+<!-- New Order -->
+<div class="modal-back" id="m-neworder">
+  <div class="modal lg">
+    <div class="modal-hd"><span class="modal-ti">Nuevo Pedido</span><button class="modal-cl" onclick="closeM('m-neworder')">×</button></div>
+    <div class="modal-bd">
+      <div class="fi-row">
+        <div class="fi"><label>Canal de venta</label>
+          <select class="fi-inp" id="no-canal" onchange="updateNewOrderForm()">
+            <option value="mercadolibre">MercadoLibre</option>
+            <option value="tiendaweb">Tienda Web</option>
+            <option value="mayoristas">Mayoristas</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="instagram">Instagram</option>
+          </select>
+        </div>
+        <div class="fi" id="no-sub-wrap"><label>Subcanal ML</label>
+          <select class="fi-inp" id="no-subcanal">
+            <option value="flex">Flex</option><option value="full">Full</option><option value="colecta">Colecta</option>
+          </select>
+        </div>
+      </div>
+      <div class="fi"><label>Nombre del cliente</label><input class="fi-inp" type="text" id="no-cliente" placeholder="Nombre completo"></div>
+      <div class="fi"><label>Productos (uno por línea: Nombre x Cantidad)</label>
+        <textarea class="fi-inp" id="no-prods" placeholder="Mesa Ratona MR-01 x1&#10;Silla Comedor SC-03 x2"></textarea>
+        <div class="fi-hint">Modelos: Mesa Ratona MR-01 / Mesa Comedor MC-02 / Silla Comedor SC-03 / Escritorio EV-02 / Cama Sommier</div>
+      </div>
+      <div class="fi"><label>Notas</label><input class="fi-inp" type="text" id="no-notas" placeholder="Opcional"></div>
+      <div id="no-may-info" style="display:none" class="badge-info a">Los pedidos de Mayoristas entran en estado <strong>Contacto</strong> y no pasan a producción hasta confirmar el pago.</div>
+    </div>
+    <div class="modal-ft"><button class="btn-ghost" onclick="closeM('m-neworder')">Cancelar</button><button class="btn" onclick="submitNewOrder()">Registrar Pedido</button></div>
+  </div>
+</div>
+
+<!-- Status Change -->
+<div class="modal-back" id="m-status">
+  <div class="modal">
+    <div class="modal-hd"><span class="modal-ti" id="ms-ti">Cambiar Estado</span><button class="modal-cl" onclick="closeM('m-status')">×</button></div>
+    <div class="modal-bd"><div id="ms-body"></div></div>
+    <div class="modal-ft"><button class="btn-ghost" onclick="closeM('m-status')">Cancelar</button></div>
+  </div>
+</div>
+
+<!-- Cancel Order -->
+<div class="modal-back" id="m-cancel">
+  <div class="modal">
+    <div class="modal-hd"><span class="modal-ti">Cancelar Pedido</span><button class="modal-cl" onclick="closeM('m-cancel')">×</button></div>
+    <div class="modal-bd">
+      <div class="badge-info r" id="mc-info"></div>
+      <div class="fi"><label>Motivo de cancelación (requerido)</label><textarea class="fi-inp" id="mc-reason" placeholder="Indicar el motivo..."></textarea></div>
+    </div>
+    <div class="modal-ft"><button class="btn-ghost" onclick="closeM('m-cancel')">Atrás</button><button class="btn r" onclick="confirmCancel()">Confirmar Cancelación</button></div>
+  </div>
+</div>
+
+<!-- Update Stock (materias primas) -->
+<div class="modal-back" id="m-stock-upd">
+  <div class="modal">
+    <div class="modal-hd"><span class="modal-ti" id="su-ti">Actualizar Stock</span><button class="modal-cl" onclick="closeM('m-stock-upd')">×</button></div>
+    <div class="modal-bd">
+      <div class="fi"><label>Nueva cantidad</label><input class="fi-inp" type="number" id="su-qty" min="0" placeholder="0"></div>
+      <div id="su-hist" style="margin-top:16px"></div>
+    </div>
+    <div class="modal-ft"><button class="btn-ghost" onclick="closeM('m-stock-upd')">Cancelar</button><button class="btn" onclick="confirmStockUpd()">Actualizar</button></div>
+  </div>
+</div>
+
+<!-- Add Raw Material -->
+<div class="modal-back" id="m-stock-add">
+  <div class="modal">
+    <div class="modal-hd"><span class="modal-ti">Agregar Materia Prima</span><button class="modal-cl" onclick="closeM('m-stock-add')">×</button></div>
+    <div class="modal-bd">
+      <div class="fi"><label>Nombre del insumo</label><input class="fi-inp" type="text" id="sa-nm" placeholder="ej: Placa MDF 18mm"></div>
+      <div class="fi-row">
+        <div class="fi"><label>Categoría</label><input class="fi-inp" type="text" id="sa-cat" placeholder="CNC / Embalaje / General"></div>
+        <div class="fi"><label>Unidad</label><input class="fi-inp" type="text" id="sa-unit" placeholder="unidades / metros / kg"></div>
+      </div>
+      <div class="fi-row">
+        <div class="fi"><label>Cantidad actual</label><input class="fi-inp" type="number" id="sa-qty" min="0" placeholder="0"></div>
+        <div class="fi"><label>Mín. recomendado</label><input class="fi-inp" type="number" id="sa-warn" min="0" placeholder="0"></div>
+      </div>
+      <div class="fi"><label>Cantidad crítica</label><input class="fi-inp" type="number" id="sa-crit" min="0" placeholder="0"></div>
+    </div>
+    <div class="modal-ft"><button class="btn-ghost" onclick="closeM('m-stock-add')">Cancelar</button><button class="btn" onclick="confirmAddStock()">Agregar</button></div>
+  </div>
+</div>
+
+<!-- Add Finished Product -->
+<div class="modal-back" id="m-product-add">
+  <div class="modal">
+    <div class="modal-hd"><span class="modal-ti">Agregar Producto Terminado</span><button class="modal-cl" onclick="closeM('m-product-add')">×</button></div>
+    <div class="modal-bd">
+      <div class="fi"><label>Nombre del producto</label><input class="fi-inp" type="text" id="pa-nm" placeholder="ej: Mesa Ratona MR-01"></div>
+      <div class="fi"><label>SKU / Código</label><input class="fi-inp" type="text" id="pa-sku" placeholder="ej: MR-01"></div>
+      <div class="fi-row">
+        <div class="fi"><label>Stock actual</label><input class="fi-inp" type="number" id="pa-qty" min="0" placeholder="0"></div>
+        <div class="fi"><label>Stock mínimo</label><input class="fi-inp" type="number" id="pa-min" min="0" placeholder="0"></div>
+      </div>
+      <div class="fi"><label>Categoría</label><input class="fi-inp" type="text" id="pa-cat" placeholder="ej: Mesas / Sillas / Escritorios"></div>
+      <div class="fi"><label>Notas</label><input class="fi-inp" type="text" id="pa-notes" placeholder="Opcional"></div>
+    </div>
+    <div class="modal-ft"><button class="btn-ghost" onclick="closeM('m-product-add')">Cancelar</button><button class="btn" onclick="confirmAddProduct()">Agregar</button></div>
+  </div>
+</div>
+
+<!-- Update Finished Product Stock -->
+<div class="modal-back" id="m-product-upd">
+  <div class="modal">
+    <div class="modal-hd"><span class="modal-ti" id="pu-ti">Actualizar Stock de Producto</span><button class="modal-cl" onclick="closeM('m-product-upd')">×</button></div>
+    <div class="modal-bd">
+      <div class="fi"><label>Nueva cantidad en stock</label><input class="fi-inp" type="number" id="pu-qty" min="0" placeholder="0"></div>
+    </div>
+    <div class="modal-ft"><button class="btn-ghost" onclick="closeM('m-product-upd')">Cancelar</button><button class="btn" onclick="confirmProductUpd()">Actualizar</button></div>
+  </div>
+</div>
+
+<!-- Register Production -->
+<div class="modal-back" id="m-prod">
+  <div class="modal">
+    <div class="modal-hd"><span class="modal-ti">Registrar Producción</span><button class="modal-cl" onclick="closeM('m-prod')">×</button></div>
+    <div class="modal-bd">
+      <div class="fi"><label>Pedido vinculado (opcional)</label>
+        <select class="fi-inp" id="mp-ord"><option value="">— Producción general —</option></select>
+      </div>
+      <div class="fi"><label>Modelo / Producto</label><input class="fi-inp" type="text" id="mp-model" placeholder="ej: Mesa Ratona MR-01"></div>
+      <div class="fi-row">
+        <div class="fi"><label>Unidades producidas</label><input class="fi-inp" type="number" id="mp-qty" min="1" placeholder="0"></div>
+        <div class="fi"><label>Fecha</label><input class="fi-inp" type="date" id="mp-date"></div>
+      </div>
+      <div class="fi"><label>Sector</label>
+        <select class="fi-inp" id="mp-sector">
+          <option value="CNC">CNC</option>
+          <option value="Melamina">Melamina</option>
+          <option value="Pino">Pino</option>
+          <option value="Embalaje">Embalaje</option>
+          <option value="Carpinteria">Carpintería</option>
+          <option value="General">General</option>
+        </select>
+      </div>
+      <div class="fi"><label>Notas</label><input class="fi-inp" type="text" id="mp-notes" placeholder="Opcional"></div>
+      <div class="fi-row">
+        <div class="fi"><label>Unidades con falla</label><input class="fi-inp" type="number" id="mp-waste" min="0" placeholder="0"></div>
+      </div>
+      <div class="fi" id="mp-waste-notes-wrap" style="display:none"><label>Descripción de la falla</label><input class="fi-inp" type="text" id="mp-waste-notes" placeholder="Describir el problema"></div>
+    </div>
+    <div class="modal-ft"><button class="btn-ghost" onclick="closeM('m-prod')">Cancelar</button><button class="btn" onclick="submitProd()">Registrar</button></div>
+  </div>
+</div>
+
+<!-- Generic Modal -->
+<div class="modal-back" id="modal-back">
+  <div class="modal lg" id="modal-container"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app.js"></script>
+<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}</script>
+</body>
+</html>
