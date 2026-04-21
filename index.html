@@ -317,10 +317,11 @@
   <div class="modal">
     <div class="modal-hd"><span class="modal-ti">Registrar Producción</span><button class="modal-cl" onclick="closeM('m-prod')">×</button></div>
     <div class="modal-bd">
-      <!-- Scanner field: la pistola HID escribe el SKU + Enter y selecciona el producto automáticamente -->
-      <div class="fi" style="margin-bottom:4px">
-        <label style="font-size:11px;color:var(--ink-muted)">Escanear SKU con pistola <span style="opacity:.6">(opcional)</span></label>
-        <input class="fi-inp" type="text" id="mp-scan-input" placeholder="Apuntá la pistola aquí y escaneá..." autocomplete="off" autocorrect="off" spellcheck="false" onkeydown="onProdScanKey(event)" style="font-family:var(--mono);font-size:13px">
+      <!-- Scanner field -->
+      <div class="fi" style="margin-bottom:8px">
+        <label style="font-weight:700;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-muted)">▣ Escanear con pistola QR / código de barras</label>
+        <input class="fi-inp" type="text" id="mp-scan-input" placeholder="Apuntá la pistola acá y escaneá el QR del producto..." autocomplete="off" autocorrect="off" spellcheck="false" onkeydown="onProdScanKey(event)" style="font-family:var(--mono);font-size:13px;background:color-mix(in srgb,var(--blue) 4%,transparent);border-color:var(--blue);border-style:dashed">
+        <div style="font-size:11px;color:var(--ink-muted);margin-top:4px">O buscá el producto en el selector de abajo.</div>
       </div>
       <div class="fi">
         <label>Producto <span style="font-size:11px;color:var(--ink-muted)">(SKU — Nombre)</span></label>
@@ -334,23 +335,30 @@
       <!-- CARRIER — para qué retiro se produce -->
       <div class="fi" style="margin-bottom:4px">
         <label style="font-weight:700;font-size:13px">Para <span style="color:var(--red)">*</span></label>
-        <div style="display:flex;gap:10px;margin-top:8px">
-          <label id="prod-lbl-colecta" style="flex:1;display:flex;align-items:center;gap:8px;padding:11px 14px;border:2px solid var(--border);border-radius:8px;cursor:pointer;transition:border-color .15s,background .15s;font-size:13px;font-weight:600">
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+          <label id="prod-lbl-colecta" style="flex:1;min-width:120px;display:flex;align-items:center;gap:8px;padding:10px 12px;border:2px solid var(--border);border-radius:8px;cursor:pointer;transition:border-color .15s,background .15s;font-size:13px;font-weight:600">
             <input type="radio" name="prod-carrier" value="colecta" onchange="onProdCarrierChange()" style="accent-color:var(--blue);width:15px;height:15px">
             <span>
               <span style="display:block;font-size:13px">Colecta</span>
               <span style="display:block;font-size:10px;font-weight:400;color:var(--ink-muted)">12:00 hs</span>
             </span>
           </label>
-          <label id="prod-lbl-flex" style="flex:1;display:flex;align-items:center;gap:8px;padding:11px 14px;border:2px solid var(--border);border-radius:8px;cursor:pointer;transition:border-color .15s,background .15s;font-size:13px;font-weight:600">
+          <label id="prod-lbl-flex" style="flex:1;min-width:120px;display:flex;align-items:center;gap:8px;padding:10px 12px;border:2px solid var(--border);border-radius:8px;cursor:pointer;transition:border-color .15s,background .15s;font-size:13px;font-weight:600">
             <input type="radio" name="prod-carrier" value="flex" onchange="onProdCarrierChange()" style="accent-color:var(--green);width:15px;height:15px">
             <span>
               <span style="display:block;font-size:13px">Flex</span>
               <span style="display:block;font-size:10px;font-weight:400;color:var(--ink-muted)">14:00 hs</span>
             </span>
           </label>
+          <label id="prod-lbl-tiendanube" style="flex:1;min-width:120px;display:flex;align-items:center;gap:8px;padding:10px 12px;border:2px solid var(--border);border-radius:8px;cursor:pointer;transition:border-color .15s,background .15s;font-size:13px;font-weight:600">
+            <input type="radio" name="prod-carrier" value="tiendanube" onchange="onProdCarrierChange()" style="accent-color:var(--blue);width:15px;height:15px">
+            <span>
+              <span style="display:block;font-size:13px">Tienda Nube</span>
+              <span style="display:block;font-size:10px;font-weight:400;color:var(--ink-muted)">Web propia</span>
+            </span>
+          </label>
         </div>
-        <div id="prod-carrier-error" style="display:none;color:var(--red);font-size:12px;margin-top:6px">Seleccioná Colecta o Flex antes de registrar</div>
+        <div id="prod-carrier-error" style="display:none;color:var(--red);font-size:12px;margin-top:6px">Seleccioná el destino antes de registrar</div>
       </div>
 
       <div class="fi">
@@ -400,34 +408,41 @@
 <!-- Import ML Excel -->
 <div class="modal-back" id="m-excel-import">
   <div class="modal lg">
-    <div class="modal-hd"><span class="modal-ti">Importar Reporte MercadoLibre</span><button class="modal-cl" onclick="closeM('m-excel-import')">×</button></div>
+    <div class="modal-hd"><span class="modal-ti">Importar Reporte de Ventas</span><button class="modal-cl" onclick="closeM('m-excel-import')">×</button></div>
     <div class="modal-bd">
-      <div class="badge-info b" style="display:block;margin-bottom:20px">Subí el archivo Excel que descargaste desde <strong>Ventas → Exportar</strong> en MercadoLibre. Los pedidos nuevos se crean automáticamente. Los ya existentes se omiten (sin duplicados).</div>
+      <div class="badge-info b" style="display:block;margin-bottom:20px">Subí el Excel exportado desde <strong>MercadoLibre</strong> o <strong>Tienda Nube</strong>. Los pedidos nuevos se crean automáticamente. Los ya existentes se omiten (sin duplicados).</div>
 
       <!-- CARRIER SELECTOR — obligatorio antes de elegir archivo -->
       <div class="fi" style="margin-bottom:20px">
-        <label style="font-weight:700;font-size:13px">Tipo de retiro <span style="color:var(--red)">*</span></label>
-        <div id="import-carrier-wrap" style="display:flex;gap:12px;margin-top:10px">
-          <label id="import-lbl-colecta" style="flex:1;display:flex;align-items:center;gap:10px;padding:14px 16px;border:2px solid var(--border);border-radius:10px;cursor:pointer;transition:border-color .15s,background .15s;font-size:13px;font-weight:600">
+        <label style="font-weight:700;font-size:13px">¿De qué canal es este archivo? <span style="color:var(--red)">*</span></label>
+        <div id="import-carrier-wrap" style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
+          <label id="import-lbl-colecta" style="flex:1;min-width:140px;display:flex;align-items:center;gap:10px;padding:13px 14px;border:2px solid var(--border);border-radius:10px;cursor:pointer;transition:border-color .15s,background .15s;font-size:13px;font-weight:600">
             <input type="radio" name="import-carrier" value="colecta" onchange="onCarrierChange()" style="accent-color:var(--blue);width:16px;height:16px">
             <span>
-              <span style="display:block;font-size:14px">Colecta</span>
+              <span style="display:block;font-size:13px">ML · Colecta</span>
               <span style="display:block;font-size:11px;font-weight:400;color:var(--ink-muted)">Retiro 12:00 hs</span>
             </span>
           </label>
-          <label id="import-lbl-flex" style="flex:1;display:flex;align-items:center;gap:10px;padding:14px 16px;border:2px solid var(--border);border-radius:10px;cursor:pointer;transition:border-color .15s,background .15s;font-size:13px;font-weight:600">
+          <label id="import-lbl-flex" style="flex:1;min-width:140px;display:flex;align-items:center;gap:10px;padding:13px 14px;border:2px solid var(--border);border-radius:10px;cursor:pointer;transition:border-color .15s,background .15s;font-size:13px;font-weight:600">
             <input type="radio" name="import-carrier" value="flex" onchange="onCarrierChange()" style="accent-color:var(--blue);width:16px;height:16px">
             <span>
-              <span style="display:block;font-size:14px">Flex</span>
+              <span style="display:block;font-size:13px">ML · Flex</span>
               <span style="display:block;font-size:11px;font-weight:400;color:var(--ink-muted)">Retiro 14:00 hs</span>
             </span>
           </label>
+          <label id="import-lbl-tiendanube" style="flex:1;min-width:140px;display:flex;align-items:center;gap:10px;padding:13px 14px;border:2px solid var(--border);border-radius:10px;cursor:pointer;transition:border-color .15s,background .15s;font-size:13px;font-weight:600">
+            <input type="radio" name="import-carrier" value="tiendanube" onchange="onCarrierChange()" style="accent-color:var(--blue);width:16px;height:16px">
+            <span>
+              <span style="display:block;font-size:13px">Tienda Nube</span>
+              <span style="display:block;font-size:11px;font-weight:400;color:var(--ink-muted)">Web propia</span>
+            </span>
+          </label>
         </div>
-        <div id="import-carrier-error" style="display:none;color:var(--red);font-size:12px;margin-top:6px">Seleccioná el tipo de retiro antes de continuar</div>
+        <div id="import-carrier-error" style="display:none;color:var(--red);font-size:12px;margin-top:6px">Seleccioná el canal antes de continuar</div>
       </div>
 
       <div class="fi">
-        <label>Archivo Excel de MercadoLibre (.xlsx)</label>
+        <label>Archivo Excel (.xlsx)</label>
         <input class="fi-inp" type="file" id="excel-file-input" accept=".xlsx,.xls,.csv" onchange="previewML(this)" style="cursor:pointer">
       </div>
       <div id="ml-detect-info" style="display:none;margin-top:12px"></div>
@@ -469,7 +484,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script src="app.js"></script>
 <script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}</script>
 </body>

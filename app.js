@@ -82,6 +82,7 @@ let cancelTarget = null;
 let statusTarget = null;
 let activeStockTab = 'materias'; // 'materias' | 'terminados'
 let excelParsedData = null;      // datos parseados del Excel (antes de confirmar)
+let _scrollToCarrier = null;     // auto-scroll a sección carrier en renderReporte
 
 /* ═══ HELPERS ═══ */
 function $(id) { return document.getElementById(id); }
@@ -590,7 +591,7 @@ async function renderReporte() {
   const [ordersRes, prodLogsRes, batchesRes] = await Promise.all([
     sb.from('orders')
       .select('id,numero,ml_order_id,fecha_pedido,productos,cantidad,sku,estado,created_at,canal,subcanal')
-      .eq('canal', 'mercadolibre')
+      .in('canal', ['mercadolibre', 'tiendanube'])
       .not('estado', 'in', '("cancelado","entregado","despachado")')
       .order('created_at', { ascending: false }),
     sb.from('prod_logs').select('id,modelo,sku,variante,unidades,subcanal,created_at'),
@@ -634,12 +635,14 @@ async function renderReporte() {
   }, 0);
   const unidadesHoy = countUnidades(ordersHoy);
 
-  const ordersColecta = orders.filter(o => o.subcanal === 'colecta');
-  const ordersFlex    = orders.filter(o => o.subcanal === 'flex');
-  const ordersOtros   = orders.filter(o => o.subcanal !== 'colecta' && o.subcanal !== 'flex');
+  const ordersColecta   = orders.filter(o => o.subcanal === 'colecta');
+  const ordersFlex      = orders.filter(o => o.subcanal === 'flex');
+  const ordersTN        = orders.filter(o => o.canal === 'tiendanube');
+  const ordersOtros     = orders.filter(o => o.subcanal !== 'colecta' && o.subcanal !== 'flex' && o.canal !== 'tiendanube');
 
   const udsColecta = countUnidades(ordersColecta);
   const udsFlex    = countUnidades(ordersFlex);
+  const udsTN      = countUnidades(ordersTN);
 
   // ── Agregación de pendiente por carrier ────────────────────────────────
   // Construye un mapa modelo||color → {pedido} para el conjunto de órdenes dado
@@ -677,17 +680,20 @@ async function renderReporte() {
 
   const mapaColecta = buildMapa(ordersColecta);
   const mapaFlex    = buildMapa(ordersFlex);
+  const mapaTN      = buildMapa(ordersTN);
   const mapaTotal   = buildMapa(orders);
-  // Filtrar prod_logs por carrier: logs sin subcanal (legados) se restan de ambos
-  subtractLogs(mapaColecta, prodLogs.filter(l => !l.subcanal || l.subcanal === 'colecta'));
-  subtractLogs(mapaFlex,    prodLogs.filter(l => !l.subcanal || l.subcanal === 'flex'));
+  subtractLogs(mapaColecta, prodLogs.filter(l => l.subcanal === 'colecta'));
+  subtractLogs(mapaFlex,    prodLogs.filter(l => l.subcanal === 'flex'));
+  subtractLogs(mapaTN,      prodLogs.filter(l => l.subcanal === 'tiendanube'));
   subtractLogs(mapaTotal,   prodLogs);
 
   const filasColecta = Object.values(mapaColecta).filter(f => f.modelo && f.pedido > 0);
   const filasFlex    = Object.values(mapaFlex).filter(f => f.modelo && f.pedido > 0);
+  const filasTN      = Object.values(mapaTN).filter(f => f.modelo && f.pedido > 0);
   const totalPendiente = Object.values(mapaTotal).reduce((s, f) => s + Math.max(0, f.pedido - f.producido), 0);
   const pendColecta = filasColecta.reduce((s, f) => s + Math.max(0, f.pedido - f.producido), 0);
   const pendFlex    = filasFlex.reduce((s, f) => s + Math.max(0, f.pedido - f.producido), 0);
+  const pendTN      = filasTN.reduce((s, f) => s + Math.max(0, f.pedido - f.producido), 0);
 
   // ── Helper: tabla de pendiente ─────────────────────────────────────────
   function buildPendingTable(filas, carrier) {
@@ -707,14 +713,25 @@ async function renderReporte() {
           </tr></thead>
           <tbody>
             ${filas.map(f => {
-              const pendiente = Math.max(0, f.pedido - f.producido);
-              const pct = f.pedido > 0 ? Math.min(100, Math.round((f.producido / f.pedido) * 100)) : 0;
+              const diff = f.pedido - f.producido;           // negativo = surplus
+              const pendiente = Math.max(0, diff);
+              const surplus   = Math.max(0, -diff);          // producido > pedido
+              const pct = f.pedido > 0 ? Math.min(100, Math.round((f.producido / f.pedido) * 100)) : 100;
+              const pendCell = surplus > 0
+                ? `<span style="color:var(--green);font-weight:700">+${surplus} stock</span>`
+                : pendiente > 0
+                  ? `<span style="color:var(--red);font-weight:700">${pendiente}</span>`
+                  : `<span style="color:var(--green)">✓ 0</span>`;
               return `<tr>
                 <td style="font-weight:600">${esc(f.modelo)}</td>
-                <td style="color:var(--ink-muted)">${esc(f.color || '—')}</td>
+                <td>
+                  ${f.color
+                    ? `<span style="display:inline-block;padding:2px 8px;background:color-mix(in srgb,var(--blue) 8%,transparent);border:1px solid var(--blue);border-radius:12px;font-size:11px;font-weight:600;color:var(--blue)">${esc(f.color)}</span>`
+                    : '<span style="color:var(--ink-muted)">—</span>'}
+                </td>
                 <td style="text-align:center;font-family:var(--mono);font-weight:700">${f.pedido}</td>
                 <td style="text-align:center;font-family:var(--mono);font-weight:700;color:var(--green)">${f.producido}</td>
-                <td style="text-align:center;font-family:var(--mono);font-weight:700;color:${pendiente > 0 ? 'var(--red)' : 'var(--green)'}">${pendiente}</td>
+                <td style="text-align:center;font-family:var(--mono)">${pendCell}</td>
                 ${canEdit ? `<td>
                   <div style="display:flex;align-items:center;gap:8px;justify-content:center">
                     <div style="width:60px;height:4px;background:var(--paper-dim)">
@@ -739,8 +756,8 @@ async function renderReporte() {
       <div style="text-align:center;padding:60px 20px">
         <div style="font-size:48px;opacity:.15;margin-bottom:16px">▤</div>
         <div style="font-size:15px;font-weight:700;margin-bottom:8px">Sin pedidos activos</div>
-        <div style="font-size:13px;color:var(--ink-muted);margin-bottom:24px">Importá el Excel de MercadoLibre para registrar los pedidos del día.</div>
-        <button class="btn" onclick="openImportML()">↑ Importar Excel ML</button>
+        <div style="font-size:13px;color:var(--ink-muted);margin-bottom:24px">Importá el Excel de MercadoLibre (Colecta / Flex) o Tienda Nube para registrar los pedidos del día.</div>
+        <button class="btn" onclick="openImportML()">↑ Importar Excel</button>
       </div>`;
     return;
   }
@@ -750,6 +767,8 @@ async function renderReporte() {
     ? `<span class="badge-info b" style="font-size:10px">Colecta</span>`
     : c === 'flex'
     ? `<span class="badge-info g" style="font-size:10px">Flex</span>`
+    : c === 'tiendanube'
+    ? `<span class="badge-info b" style="font-size:10px">Tienda Nube</span>`
     : `<span class="badge-info" style="font-size:10px">${esc(c || '—')}</span>`;
 
   $('reporte-body').innerHTML = `
@@ -765,11 +784,15 @@ async function renderReporte() {
       </div>
       <div class="sc b" style="cursor:pointer" onclick="document.getElementById('section-colecta').scrollIntoView({behavior:'smooth'})">
         <div class="sc-l">Colecta · 12:00 hs</div>
-        <div class="sc-v">${ordersColecta.length} <span style="font-size:13px;font-weight:500;color:var(--ink-muted)">· ${udsColecta} uds</span></div>
+        <div class="sc-v">${ordersColecta.length} <span style="font-size:13px;font-weight:500;color:var(--ink-muted)">· ${pendColecta > 0 ? `<span style="color:var(--red)">${pendColecta} pend.</span>` : '✓ al día'}</span></div>
       </div>
       <div class="sc b" style="cursor:pointer" onclick="document.getElementById('section-flex').scrollIntoView({behavior:'smooth'})">
         <div class="sc-l">Flex · 14:00 hs</div>
-        <div class="sc-v">${ordersFlex.length} <span style="font-size:13px;font-weight:500;color:var(--ink-muted)">· ${udsFlex} uds</span></div>
+        <div class="sc-v">${ordersFlex.length} <span style="font-size:13px;font-weight:500;color:var(--ink-muted)">· ${pendFlex > 0 ? `<span style="color:var(--red)">${pendFlex} pend.</span>` : '✓ al día'}</span></div>
+      </div>
+      <div class="sc b" style="cursor:pointer" onclick="document.getElementById('section-tn').scrollIntoView({behavior:'smooth'})">
+        <div class="sc-l">Tienda Nube</div>
+        <div class="sc-v">${ordersTN.length} <span style="font-size:13px;font-weight:500;color:var(--ink-muted)">· ${pendTN > 0 ? `<span style="color:var(--red)">${pendTN} pend.</span>` : '✓ al día'}</span></div>
       </div>
     </div>
 
@@ -780,7 +803,7 @@ async function renderReporte() {
       </div>` : `
       <div class="card" style="padding:14px 18px;margin-bottom:16px;border-left:3px solid var(--blue)">
         <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--ink-muted);text-transform:uppercase;margin-bottom:4px">Importaciones de hoy</div>
-        <div style="font-size:13px">${ordersHoy.length} pedidos · ${unidadesHoy} unidades · ${ordersHoy.filter(o=>o.subcanal==='colecta').length} Colecta · ${ordersHoy.filter(o=>o.subcanal==='flex').length} Flex</div>
+        <div style="font-size:13px">${ordersHoy.length} pedidos · ${unidadesHoy} unidades · ${ordersHoy.filter(o=>o.subcanal==='colecta').length} Colecta · ${ordersHoy.filter(o=>o.subcanal==='flex').length} Flex · ${ordersHoy.filter(o=>o.canal==='tiendanube').length} TN</div>
       </div>`}
 
     <!-- Sección Colecta -->
@@ -813,6 +836,22 @@ async function renderReporte() {
       </div>
       <div id="carrier-detail-flex" style="display:none;border-bottom:1px solid var(--border);margin-bottom:16px;padding-bottom:16px"></div>
       ${buildPendingTable(filasFlex, 'Flex')}
+    </div>
+
+    <!-- Sección Tienda Nube -->
+    <div id="section-tn" class="card" style="padding:20px;margin-bottom:16px;border-top:3px solid var(--blue)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--blue);margin-bottom:4px">TIENDA NUBE — Web propia</div>
+          <div style="font-size:13px;color:var(--ink-muted)">${ordersTN.length} pedidos · ${udsTN} unidades · <span style="color:${pendTN > 0 ? 'var(--red)' : 'var(--green)'};font-weight:700">${pendTN} pendientes</span></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="carrier-detail-btn-tiendanube" class="btn-ghost sm" onclick="toggleCarrierDetail('tiendanube')">Ver pedidos ▾</button>
+          <button class="btn-ghost sm" onclick="openImportML()">↑ Importar</button>
+        </div>
+      </div>
+      <div id="carrier-detail-tiendanube" style="display:none;border-bottom:1px solid var(--border);margin-bottom:16px;padding-bottom:16px"></div>
+      ${buildPendingTable(filasTN, 'Tienda Nube')}
     </div>
 
     ${ordersOtros.length > 0 ? `
@@ -857,6 +896,21 @@ async function renderReporte() {
       </div>
     </div>` : ''}
   `;
+
+  // Auto-scroll al carrier si se llegó desde el dashboard
+  if (_scrollToCarrier) {
+    const sectionId = _scrollToCarrier === 'tn' ? 'section-tn' : `section-${_scrollToCarrier}`;
+    _scrollToCarrier = null;
+    setTimeout(() => {
+      const el = document.getElementById(sectionId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        el.style.outline = '2px solid var(--blue)';
+        el.style.outlineOffset = '4px';
+        setTimeout(() => { el.style.outline = ''; el.style.outlineOffset = ''; }, 1800);
+      }
+    }, 150);
+  }
 }
 
 /* ═══ QR + Scanner ═══ */
@@ -866,18 +920,20 @@ function showQR(sku, nombre) {
   $('qr-modal-title').textContent = `QR — ${sku}`;
   $('qr-sku-label').textContent = sku;
   $('qr-nombre-label').textContent = nombre || '';
-  const canvas = $('qr-canvas');
+  const wrap = $('qr-canvas-wrap');
+  wrap.innerHTML = '';
   if (typeof QRCode === 'undefined') { showToast('Librería QR no cargada. Revisá la conexión.', 'error'); return; }
-  QRCode.toCanvas(canvas, sku, { width: 220, margin: 2, color: { dark: '#0f0f0f', light: '#ffffff' } }, (err) => {
-    if (err) { showToast('Error generando QR: ' + err.message, 'error'); return; }
-  });
+  try {
+    new QRCode(wrap, { text: sku, width: 220, height: 220, colorDark: '#0f0f0f', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  } catch (err) { showToast('Error generando QR: ' + err.message, 'error'); return; }
   openM('m-qr');
 }
 
 // Descarga el canvas del QR como PNG
 function downloadQR() {
-  const canvas = $('qr-canvas');
   const sku = $('qr-sku-label').textContent || 'qr';
+  const canvas = $('qr-canvas-wrap').querySelector('canvas');
+  if (!canvas) { showToast('No hay QR generado', 'error'); return; }
   const link = document.createElement('a');
   link.download = `qr-${sku}.png`;
   link.href = canvas.toDataURL('image/png');
@@ -934,18 +990,25 @@ async function toggleCarrierDetail(carrier) {
   btn.textContent = 'Cargando...';
   btn.disabled = true;
 
-  const { data: orders } = await sb.from('orders')
-    .select('id,numero,ml_order_id,cliente,productos,cantidad,sku,estado,fecha_pedido,created_at,subcanal')
-    .eq('canal', 'mercadolibre')
-    .eq('subcanal', carrier)
+  let query = sb.from('orders')
+    .select('id,numero,ml_order_id,cliente,productos,cantidad,sku,estado,fecha_pedido,created_at,canal,subcanal')
     .not('estado', 'in', '("cancelado","entregado","despachado")')
     .order('created_at', { ascending: false });
 
+  if (carrier === 'tiendanube') {
+    query = query.eq('canal', 'tiendanube');
+  } else {
+    query = query.eq('canal', 'mercadolibre').eq('subcanal', carrier);
+  }
+
+  const { data: orders } = await query;
+
+  const carrierLabel = carrier === 'colecta' ? 'Colecta' : carrier === 'flex' ? 'Flex' : 'Tienda Nube';
   const lista = orders || [];
   const isOwnerAdmin = ['owner', 'admin'].includes(cu.role);
 
   if (!lista.length) {
-    container.innerHTML = `<div style="color:var(--ink-muted);font-size:13px;padding:12px 0">Sin pedidos activos para ${carrier === 'colecta' ? 'Colecta' : 'Flex'}.</div>`;
+    container.innerHTML = `<div style="color:var(--ink-muted);font-size:13px;padding:12px 0">Sin pedidos activos para ${carrierLabel}.</div>`;
   } else {
     const rows = lista.map(o => {
       const prods = o.productos || [];
@@ -1047,25 +1110,21 @@ function onCarrierChange() {
 }
 
 function updateCarrierStyles(val) {
-  const lblColecta = $('import-lbl-colecta');
-  const lblFlex = $('import-lbl-flex');
-  if (!lblColecta || !lblFlex) return;
-  lblColecta.style.borderColor = val === 'colecta' ? 'var(--blue)' : 'var(--border)';
-  lblColecta.style.background = val === 'colecta' ? 'color-mix(in srgb, var(--blue) 8%, transparent)' : '';
-  lblFlex.style.borderColor = val === 'flex' ? 'var(--blue)' : 'var(--border)';
-  lblFlex.style.background = val === 'flex' ? 'color-mix(in srgb, var(--blue) 8%, transparent)' : '';
+  const map = {
+    colecta:    { el: $('import-lbl-colecta'),   color: 'var(--blue)' },
+    flex:       { el: $('import-lbl-flex'),       color: 'var(--blue)' },
+    tiendanube: { el: $('import-lbl-tiendanube'), color: 'var(--blue)' }
+  };
+  for (const [k, { el, color }] of Object.entries(map)) {
+    if (!el) continue;
+    el.style.borderColor = val === k ? color : 'var(--border)';
+    el.style.background  = val === k ? `color-mix(in srgb, ${color} 8%, transparent)` : '';
+  }
 }
 
 function previewML(input) {
   const file = input.files[0];
   if (!file) return;
-  // Must select carrier first
-  if (!getImportCarrier()) {
-    const errEl = $('import-carrier-error');
-    if (errEl) errEl.style.display = '';
-    input.value = '';
-    return;
-  }
   if (typeof XLSX === 'undefined') { showToast('Error: librería Excel no cargada. Recargá la página.', 'error'); return; }
 
   const reader = new FileReader();
@@ -1077,46 +1136,88 @@ function previewML(input) {
       const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
       if (!rows || rows.length < 2) { showToast('El archivo está vacío o no tiene datos', 'error'); return; }
 
-      // ML exports have intro text in first rows; find the actual header row
-      // Use very specific terms that only appear in the real column header row, not section rows
-      const HEADER_MARKERS = ['# de venta', 'título de la publicación', 'titulo de la publicacion', 'fecha de venta'];
+      // ── Buscar la fila de encabezados (ML tiene texto intro antes) ──────
+      const ML_HEADER_MARKERS  = ['# de venta', 'título de la publicación', 'titulo de la publicacion', 'fecha de venta', 'nro. de venta'];
+      const TN_HEADER_MARKERS  = ['número de pedido', 'numero de pedido', 'nombre y apellido', 'nombre del producto', 'variantes del producto', 'variante del producto'];
       let headerRowIdx = 0;
-      for (let i = 0; i < Math.min(10, rows.length); i++) {
+      for (let i = 0; i < Math.min(15, rows.length); i++) {
         const rowStr = rows[i].map(String).join('|').toLowerCase();
-        if (HEADER_MARKERS.some(m => rowStr.includes(m.toLowerCase()))) { headerRowIdx = i; break; }
+        if ([...ML_HEADER_MARKERS, ...TN_HEADER_MARKERS].some(m => rowStr.includes(m.toLowerCase()))) { headerRowIdx = i; break; }
       }
       const headers = rows[headerRowIdx].map(String);
+      const headersLow = headers.map(h => h.toLowerCase());
       const findCol = (...terms) => headers.findIndex(h => terms.some(t => h.toLowerCase().includes(t.toLowerCase())));
 
-      const hasVenta = findCol('# de venta', 'nro. de venta', 'número de venta', 'numero de venta', 'n° de venta', 'nro venta', 'venta') >= 0;
-      const hasTitulo = findCol('título', 'titulo', 'publicación', 'publicacion', 'title', 'producto', 'artículo', 'articulo', 'descripcion', 'descripción') >= 0;
+      // ── Detectar fuente: Tienda Nube vs MercadoLibre ────────────────────
+      const isTN = TN_HEADER_MARKERS.some(m => headersLow.some(h => h.includes(m.toLowerCase())));
+      const isML = ML_HEADER_MARKERS.some(m => headersLow.some(h => h.includes(m.toLowerCase())));
+
+      // ── Para ML: intentar detectar Colecta vs Flex en los datos ─────────
+      let autoCarrier = null;
+      if (isTN) {
+        autoCarrier = 'tiendanube';
+      } else if (isML) {
+        // Buscar columna de tipo de envío y escanear valores
+        const envioCol = findCol('tipo de envío', 'tipo de envio', 'modalidad', 'shipping', 'logística', 'logistica', 'modo de envio', 'tipo de logística');
+        if (envioCol >= 0) {
+          const envioVals = rows.slice(headerRowIdx + 1, headerRowIdx + 20).map(r => String(r[envioCol] || '').toLowerCase());
+          const hasColecta = envioVals.some(v => v.includes('colecta') || v.includes('collect'));
+          const hasFlex    = envioVals.some(v => v.includes('flex'));
+          if (hasColecta && !hasFlex)      autoCarrier = 'colecta';
+          else if (hasFlex && !hasColecta) autoCarrier = 'flex';
+        }
+        // Si no pudo detectar por datos, dejar al usuario elegir
+        if (!autoCarrier) autoCarrier = getImportCarrier(); // mantener selección actual si existe
+      }
+
+      // ── Auto-seleccionar radio si se detectó ────────────────────────────
+      if (autoCarrier) {
+        const radio = document.querySelector(`input[name="import-carrier"][value="${autoCarrier}"]`);
+        if (radio) { radio.checked = true; updateCarrierStyles(autoCarrier); }
+        const errEl = $('import-carrier-error');
+        if (errEl) errEl.style.display = 'none';
+      }
+
+      const hasVenta    = findCol('# de venta', 'nro. de venta', 'número de venta', 'numero de venta', 'n° de venta', 'nro venta', 'venta') >= 0;
+      const hasTitulo   = findCol('título', 'titulo', 'publicación', 'publicacion', 'title', 'producto', 'artículo', 'articulo', 'descripcion', 'descripción', 'nombre del producto') >= 0;
       const hasUnidades = findCol('unidades', 'cantidad', 'qty', 'units') >= 0;
 
       const detectInfo = $('ml-detect-info');
       detectInfo.style.display = 'block';
+
+      const sourceLabel = isTN ? '🟦 Tienda Nube' : isML ? '🟡 MercadoLibre' : null;
+      const carrierLabel = autoCarrier === 'colecta' ? 'Colecta 12:00 hs' : autoCarrier === 'flex' ? 'Flex 14:00 hs' : autoCarrier === 'tiendanube' ? 'Tienda Nube' : null;
+
       if (!hasVenta && !hasTitulo && !hasUnidades) {
         const headerList = headers.filter(h => h.trim()).slice(0, 20).join(' | ');
-        detectInfo.innerHTML = `<div class="badge-info r" style="display:block">Este archivo no parece ser un export de MercadoLibre.<br><small style="opacity:.75">Columnas encontradas: <em>${esc(headerList)}</em></small></div>`;
+        detectInfo.innerHTML = `<div class="badge-info r" style="display:block">No pudimos reconocer este archivo. Verificá que sea un export de MercadoLibre o Tienda Nube.<br><small style="opacity:.75">Columnas encontradas: <em>${esc(headerList)}</em></small></div>`;
         return;
       }
 
+      // ── Mapeo de columnas — cubre ML y Tienda Nube ──────────────────────
       const COL = {
-        venta:    findCol('# de venta', 'nro. de venta', 'número de venta', 'numero de venta', 'n° de venta', 'nro venta', 'venta'),
-        titulo:   findCol('título de la publicación', 'titulo de la publicacion', 'título', 'titulo', 'title'),
+        venta:    findCol('# de venta', 'nro. de venta', 'número de venta', 'numero de venta', 'n° de venta', 'nro venta', 'venta', 'número de pedido', 'numero de pedido', 'order'),
+        titulo:   findCol('título de la publicación', 'titulo de la publicacion', 'título', 'titulo', 'title', 'nombre del producto', 'producto'),
         unidades: findCol('unidades', 'cantidad', 'qty', 'units'),
-        comprador:findCol('comprador', 'buyer', 'nombre del comprador'),
+        comprador:findCol('comprador', 'buyer', 'nombre del comprador', 'nombre y apellido', 'nombre completo', 'cliente'),
         sku:      findCol('sku'),
-        variante: findCol('variante', 'variación', 'variant'),
+        variante: findCol('variante', 'variación', 'variant', 'variantes del producto', 'variante del producto'),
         dni:      findCol('dni', 'cuit', 'documento'),
-        fecha:    findCol('fecha de venta', 'fecha'),
+        fecha:    findCol('fecha de venta', 'fecha de creación', 'fecha'),
         estado:   findCol('estado', 'status'),
         canal:    findCol('canal de venta', 'canal')
       };
 
       const dataRows = rows.slice(headerRowIdx + 1).filter(r => r.some(c => String(c).trim() !== ''));
-      excelParsedData = { headers, rows: dataRows, COL };
+      excelParsedData = { headers, rows: dataRows, COL, sourceType: isTN ? 'tiendanube' : 'mercadolibre' };
 
-      detectInfo.innerHTML = `<div class="badge-info g" style="display:block">✓ Formato MercadoLibre detectado — ${dataRows.length} líneas de pedido encontradas</div>`;
+      const detectedMsg = sourceLabel
+        ? `✓ ${sourceLabel} detectado${carrierLabel ? ` — <strong>${carrierLabel}</strong>` : ' — seleccioná el retiro arriba'} — ${dataRows.length} filas encontradas`
+        : `✓ Formato detectado — ${dataRows.length} filas encontradas`;
+      const needsCarrierWarn = isML && !autoCarrier
+        ? `<br><span style="color:var(--amber);font-size:11px">⚠ No pudimos detectar si es Colecta o Flex — seleccionalo arriba antes de importar.</span>`
+        : '';
+      detectInfo.innerHTML = `<div class="badge-info g" style="display:block">${detectedMsg}${needsCarrierWarn}</div>`;
 
       const PREVIEW_KEYS = ['venta','titulo','variante','unidades','comprador','estado'].filter(k => COL[k] >= 0);
       const LABELS = { venta:'# Venta', titulo:'Producto', variante:'Variante', unidades:'Unidades', comprador:'Comprador', estado:'Estado ML' };
@@ -1141,7 +1242,8 @@ async function confirmarImportML() {
   const carrier = getImportCarrier();
   if (!carrier) {
     const errEl = $('import-carrier-error');
-    if (errEl) errEl.style.display = '';
+    if (errEl) { errEl.style.display = ''; errEl.textContent = 'Seleccioná el canal / tipo de retiro antes de importar'; }
+    showToast('Seleccioná el canal antes de importar', 'error');
     return;
   }
   const { rows, COL } = excelParsedData;
@@ -1196,14 +1298,19 @@ async function confirmarImportML() {
     existingIds = new Set((existing || []).map(o => o.ml_order_id));
   }
 
+  // Determinar canal y subcanal según el carrier seleccionado
+  const isTN = carrier === 'tiendanube';
+  const canalInsertar = isTN ? 'tiendanube' : 'mercadolibre';
+  const subcanalInsertar = isTN ? null : carrier;
+
   const inserts = [];
   for (const g of listaGrupos) {
-    if (g.ml_order_id && existingIds.has(g.ml_order_id)) continue;
+    if (!isTN && g.ml_order_id && existingIds.has(g.ml_order_id)) continue;
     const totalUnidades = g.productos.reduce((s, p) => s + p.cantidad, 0);
     const firstSku = g.productos.find(p => p.sku)?.sku || null;
     inserts.push({
-      canal: 'mercadolibre',
-      subcanal: carrier,
+      canal: canalInsertar,
+      subcanal: subcanalInsertar,
       cliente: g.cliente,
       dni_cuit: g.dni_cuit,
       fecha_pedido: g.fecha_pedido,
@@ -1294,17 +1401,33 @@ async function renderDash() {
   const totalProducedAllTime = (allProdLogsRes.data || []).reduce((a, l) => a + (l.unidades || 0), 0);
   const pendingProd = Math.max(0, totalOrderedUnits - totalProducedAllTime);
 
-  // Colecta / Flex split — solo pedidos ML activos de hoy
-  const mlHoy = activeOrders.filter(o => o.canal === 'mercadolibre' && (o.created_at || '').startsWith(today));
+  // Carrier split — pedidos activos por canal
   const countUds = (list) => list.reduce((s, o) => {
     const prods = o.productos || [];
     return s + (prods.length > 0 ? prods.reduce((ss, p) => ss + parseInt(p.cantidad || 0), 0) : parseInt(o.cantidad || 0));
   }, 0);
-  const colectaHoy = mlHoy.filter(o => o.subcanal === 'colecta');
-  const flexHoy    = mlHoy.filter(o => o.subcanal === 'flex');
+  const colectaActivos = activeOrders.filter(o => o.subcanal === 'colecta');
+  const flexActivos    = activeOrders.filter(o => o.subcanal === 'flex');
+  const tnActivos      = activeOrders.filter(o => o.canal === 'tiendanube');
 
   $('dash-body').innerHTML = `
+    <!-- Fila 1: Carriers — lo más importante para el día -->
     <div class="sg">
+      <div class="sc ${colectaActivos.length > 0 ? 'b' : ''}" onclick="_scrollToCarrier='colecta';navigate('reporte')" style="cursor:pointer" title="Ver Reporte Diario — Colecta">
+        <div class="sc-l">Colecta · 12:00 hs</div>
+        <div class="sc-v">${colectaActivos.length} <span style="font-size:13px;font-weight:500;color:var(--ink-muted)">ped · ${countUds(colectaActivos)} uds</span></div>
+      </div>
+      <div class="sc ${flexActivos.length > 0 ? 'b' : ''}" onclick="_scrollToCarrier='flex';navigate('reporte')" style="cursor:pointer" title="Ver Reporte Diario — Flex">
+        <div class="sc-l">Flex · 14:00 hs</div>
+        <div class="sc-v">${flexActivos.length} <span style="font-size:13px;font-weight:500;color:var(--ink-muted)">ped · ${countUds(flexActivos)} uds</span></div>
+      </div>
+      <div class="sc ${tnActivos.length > 0 ? 'b' : ''}" onclick="_scrollToCarrier='tn';navigate('reporte')" style="cursor:pointer" title="Ver Reporte Diario — Tienda Nube">
+        <div class="sc-l">Tienda Nube</div>
+        <div class="sc-v">${tnActivos.length} <span style="font-size:13px;font-weight:500;color:var(--ink-muted)">ped · ${countUds(tnActivos)} uds</span></div>
+      </div>
+    </div>
+    <!-- Fila 2: Estado de producción -->
+    <div class="sg" style="margin-top:12px">
       <div class="sc" onclick="navigate('ventas')" style="cursor:pointer">
         <div class="sc-l">Pedidos activos</div>
         <div class="sc-v">${activeOrders.length}</div>
@@ -1313,23 +1436,9 @@ async function renderDash() {
         <div class="sc-l">En producción</div>
         <div class="sc-v">${byStatus('en_produccion')}</div>
       </div>
-      <div class="sc g" onclick="navigate('produccion')" style="cursor:pointer">
-        <div class="sc-l">Unidades hoy</div>
-        <div class="sc-v">${todayProd}</div>
-      </div>
       <div class="sc ${pendingProd > 0 ? 'r' : 'g'}" onclick="navigate('produccion')" style="cursor:pointer">
         <div class="sc-l">Pendiente prod.</div>
         <div class="sc-v">${pendingProd}</div>
-      </div>
-    </div>
-    <div class="sg" style="margin-top:12px">
-      <div class="sc b" onclick="navigate('reporte')" style="cursor:pointer" title="Ver Reporte Diario — Colecta">
-        <div class="sc-l">Colecta hoy · 12:00 hs</div>
-        <div class="sc-v">${colectaHoy.length} <span style="font-size:13px;font-weight:500;color:var(--ink-muted)">ped · ${countUds(colectaHoy)} uds</span></div>
-      </div>
-      <div class="sc b" onclick="navigate('reporte')" style="cursor:pointer" title="Ver Reporte Diario — Flex">
-        <div class="sc-l">Flex hoy · 14:00 hs</div>
-        <div class="sc-v">${flexHoy.length} <span style="font-size:13px;font-weight:500;color:var(--ink-muted)">ped · ${countUds(flexHoy)} uds</span></div>
       </div>
     </div>
     ${critItems.length > 0 || warnItems.length > 0 ? `
@@ -2014,6 +2123,8 @@ async function renderProduccion() {
                   ? `<span class="badge-info b" style="font-size:10px">Colecta</span>`
                   : l.subcanal === 'flex'
                   ? `<span class="badge-info g" style="font-size:10px">Flex</span>`
+                  : l.subcanal === 'tiendanube'
+                  ? `<span class="badge-info b" style="font-size:10px">Tienda Nube</span>`
                   : `<span style="font-size:11px;color:var(--ink-muted)">—</span>`;
                 return `
                 <tr>
@@ -2088,13 +2199,16 @@ function onProdCarrierChange() {
 }
 
 function updateProdCarrierStyles(val) {
-  const lblC = $('prod-lbl-colecta');
-  const lblF = $('prod-lbl-flex');
-  if (!lblC || !lblF) return;
-  lblC.style.borderColor = val === 'colecta' ? 'var(--blue)' : 'var(--border)';
-  lblC.style.background  = val === 'colecta' ? 'color-mix(in srgb, var(--blue) 8%, transparent)' : '';
-  lblF.style.borderColor = val === 'flex'    ? 'var(--green)' : 'var(--border)';
-  lblF.style.background  = val === 'flex'    ? 'color-mix(in srgb, var(--green) 8%, transparent)' : '';
+  const map = {
+    colecta:    { el: $('prod-lbl-colecta'),    color: 'var(--blue)'  },
+    flex:       { el: $('prod-lbl-flex'),        color: 'var(--green)' },
+    tiendanube: { el: $('prod-lbl-tiendanube'), color: 'var(--blue)'  }
+  };
+  for (const [k, { el, color }] of Object.entries(map)) {
+    if (!el) continue;
+    el.style.borderColor = val === k ? color : 'var(--border)';
+    el.style.background  = val === k ? `color-mix(in srgb, ${color} 8%, transparent)` : '';
+  }
 }
 
 function onProdModelChange(sel) {
@@ -2102,10 +2216,18 @@ function onProdModelChange(sel) {
   if (!sel.value) { info.style.display = 'none'; return; }
   const p = _prodCatalog.find(x => x.id === sel.value);
   if (p) {
-    const nombre = p.nombre_display || (p.modelo + (p.variante ? ' ' + p.variante : ''));
+    const colorBadge = p.variante
+      ? `<span style="display:inline-block;margin-left:10px;padding:3px 10px;background:color-mix(in srgb,var(--blue) 10%,transparent);border:1px solid var(--blue);border-radius:20px;font-size:12px;font-weight:700;color:var(--blue)">${esc(p.variante)}</span>`
+      : '';
     info.style.display = 'block';
-    info.innerHTML = `<strong style="font-family:monospace;color:var(--blue)">${esc(p.sku)}</strong> — ${esc(nombre)}${p.categoria ? `<span style="color:var(--ink-muted);font-size:11px"> · ${esc(p.categoria)}</span>` : ''}`;
-    // Focus quantity field for fast entry
+    info.innerHTML = `
+      <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px">
+        <strong style="font-family:monospace;color:var(--blue);font-size:14px">${esc(p.sku)}</strong>
+        <span style="color:var(--ink-soft);font-size:13px">${esc(p.modelo)}</span>
+        ${colorBadge}
+      </div>
+      ${p.categoria ? `<div style="font-size:11px;color:var(--ink-muted);margin-top:2px">${esc(p.categoria)}</div>` : ''}
+    `;
     setTimeout(() => { $('mp-qty').focus(); $('mp-qty').select(); }, 50);
   }
 }
@@ -2172,7 +2294,7 @@ async function submitProd() {
   if (!subcanal) {
     const errEl = $('prod-carrier-error');
     if (errEl) errEl.style.display = '';
-    showToast('Seleccioná Colecta o Flex', 'error');
+    showToast('Seleccioná el destino: Colecta, Flex o Tienda Nube', 'error');
     return;
   }
 
@@ -2208,7 +2330,7 @@ async function submitProd() {
   });
 
   if (error) { showToast('Error: ' + error.message, 'error'); unlockBtn(btn, '✓ Registrar'); return; }
-  const carrierLabel = subcanal === 'colecta' ? 'Colecta' : 'Flex';
+  const carrierLabel = subcanal === 'colecta' ? 'Colecta' : subcanal === 'flex' ? 'Flex' : 'Tienda Nube';
   await logActivity('produccion_registrada', `Producción: ${sku || modelo}${variante ? ' (' + variante + ')' : ''} ×${unidades} — ${sector} — ${carrierLabel}`, orden_id);
   closeM('m-prod');
   showToast(`✓ ${unidades} ${esc(sku || modelo)} (${carrierLabel}) registradas`);
