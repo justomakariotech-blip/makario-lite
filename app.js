@@ -1517,10 +1517,14 @@ function previewML(input) {
       }
       const headers = rows[headerRowIdx].map(String);
       const headersLow = headers.map(h => h.toLowerCase());
-      // Busca la primera columna que contenga el término más específico primero
+      // Normalizar unicode (NFC) antes de comparar — ML exporta con composición diferente
+      const norm = s => s.normalize('NFC').toLowerCase()
+        .replace(/á/g,'a').replace(/é/g,'e').replace(/í/g,'i').replace(/ó/g,'o').replace(/ú/g,'u').replace(/ñ/g,'n');
+      const headersNorm = headers.map(h => norm(h));
       const findCol = (...terms) => {
         for (const t of terms) {
-          const idx = headers.findIndex(h => h.toLowerCase().includes(t.toLowerCase()));
+          const nt = norm(t);
+          const idx = headersNorm.findIndex(h => h.includes(nt));
           if (idx >= 0) return idx;
         }
         return -1;
@@ -1574,17 +1578,34 @@ function previewML(input) {
 
       // ── Mapeo de columnas — cubre ML y Tienda Nube ──────────────────────
       const COL = {
-        venta:    findCol('# de venta', 'nro. de venta', 'número de venta', 'numero de venta', 'n° de venta', 'nro venta', 'venta', 'número de pedido', 'numero de pedido', 'order'),
-        titulo:   findCol('título de la publicación', 'titulo de la publicacion', 'título', 'titulo', 'title', 'nombre del producto', 'producto'),
+        venta:    findCol('# de venta', 'nro. de venta', 'numero de venta', 'n de venta', 'nro venta', 'numero de pedido', 'order'),
+        titulo:   findCol('titulo de la publicacion', 'titulo del articulo', 'nombre del articulo', 'descripcion del articulo', 'titulo', 'title', 'nombre del producto', 'descripcion', 'articulo'),
         unidades: findCol('unidades', 'cantidad', 'qty', 'units'),
         comprador:findCol('comprador', 'buyer', 'nombre del comprador', 'nombre y apellido', 'nombre completo', 'cliente'),
         sku:      findCol('sku'),
-        variante: findCol('variante', 'variación', 'variant', 'variantes del producto', 'variante del producto'),
+        variante: findCol('variante', 'variacion', 'variant', 'variantes del producto', 'variante del producto'),
         dni:      findCol('dni', 'cuit', 'documento'),
-        fecha:    findCol('fecha de venta', 'fecha de creación', 'fecha'),
+        fecha:    findCol('fecha de venta', 'fecha de creacion', 'fecha'),
         estado:   findCol('estado', 'status'),
         canal:    findCol('canal de venta', 'canal')
       };
+
+      // ── Seguridad: si la columna título tiene valores boolean, es la columna equivocada ──
+      if (COL.titulo >= 0) {
+        const BOOL_VALS = new Set(['si', 'no', 'sí', 'true', 'false', '1', '0', '']);
+        const sample = dataRows.slice(0, 20).map(r => String(r[COL.titulo] || '').trim().toLowerCase());
+        const boolCount = sample.filter(v => BOOL_VALS.has(v)).length;
+        if (boolCount > sample.length * 0.4) {
+          // Columna incorrecta — buscar primera columna con texto largo (>15 chars en promedio)
+          const better = headers.findIndex((_, i) => {
+            if (i === COL.titulo) return false;
+            const vals = dataRows.slice(0, 10).map(r => String(r[i] || '').trim());
+            const avgLen = vals.reduce((s, v) => s + v.length, 0) / (vals.length || 1);
+            return avgLen > 15;
+          });
+          COL.titulo = better; // -1 si no encuentra nada mejor
+        }
+      }
 
       const dataRows = rows.slice(headerRowIdx + 1).filter(r => r.some(c => String(c).trim() !== ''));
       excelParsedData = { headers, rows: dataRows, COL, sourceType: isTN ? 'tiendanube' : 'mercadolibre' };
