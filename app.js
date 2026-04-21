@@ -1453,7 +1453,9 @@ function openImportML() {
   const inp = $('excel-file-input');
   if (inp) inp.value = '';
   $('excel-preview-wrap').style.display = 'none';
-  $('btn-import-confirm').style.display = 'none';
+  const confirmBtn = $('btn-import-confirm');
+  confirmBtn.style.display = 'none';
+  unlockBtn(confirmBtn, 'Importar Pedidos'); // siempre resetear estado del botón al abrir
   const info = $('ml-detect-info');
   if (info) { info.style.display = 'none'; info.innerHTML = ''; }
   $('excel-preview-table').innerHTML = '';
