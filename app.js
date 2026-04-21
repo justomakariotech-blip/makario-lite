@@ -911,6 +911,17 @@ async function _processMLScan(raw) {
   `;
 }
 
+async function _loadHtml5Qrcode() {
+  if (typeof Html5Qrcode !== 'undefined') return true;
+  return new Promise(resolve => {
+    const s = document.createElement('script');
+    s.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+    s.onload = () => resolve(true);
+    s.onerror = () => resolve(false);
+    document.head.appendChild(s);
+  });
+}
+
 async function _toggleScannerCamera() {
   if (_scannerCamera) {
     await _stopScannerCamera();
@@ -919,7 +930,12 @@ async function _toggleScannerCamera() {
   const wrap = $('sc-cam-wrap');
   const btn = $('sc-cam-btn');
   if (!wrap || !btn) return;
-  if (typeof Html5Qrcode === 'undefined') { showToast('Cámara no disponible', 'error'); return; }
+
+  const loaded = await _loadHtml5Qrcode();
+  if (!loaded || typeof Html5Qrcode === 'undefined') {
+    showToast('No se pudo cargar la librería de cámara', 'error');
+    return;
+  }
 
   wrap.style.display = 'block';
   btn.textContent = '■ Detener cámara';
