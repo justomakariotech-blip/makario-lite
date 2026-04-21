@@ -191,6 +191,7 @@ textarea.fi-inp{resize:vertical;min-height:80px}
 @keyframes pb{0%,100%{opacity:1}50%{opacity:.3}}
 .s-pendiente{background:var(--paper-dim);color:var(--ink-muted)}.s-pendiente .sp{background:var(--ink-muted)}
 .s-en_produccion{background:var(--blue-bg);color:var(--blue)}.s-en_produccion .sp{background:var(--blue);animation:pb 2s infinite}
+.s-producido{background:var(--green-bg);color:#065f46}.s-producido .sp{background:#065f46}
 .s-listo_despacho{background:var(--amber-bg);color:var(--amber)}.s-listo_despacho .sp{background:var(--amber)}
 .s-despachado{background:var(--purple-bg);color:var(--purple)}.s-despachado .sp{background:var(--purple)}
 .s-entregado{background:var(--green-bg);color:var(--green)}.s-entregado .sp{background:var(--green)}
