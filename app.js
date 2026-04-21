@@ -83,6 +83,7 @@ let statusTarget = null;
 let activeStockTab = 'materias'; // 'materias' | 'terminados'
 let excelParsedData = null;      // datos parseados del Excel (antes de confirmar)
 let _scrollToCarrier = null;     // auto-scroll a sección carrier en renderReporte
+let _currentCarrier = null;      // carrier activo en la vista de carrier page
 
 /* ═══ HELPERS ═══ */
 function $(id) { return document.getElementById(id); }
@@ -553,6 +554,7 @@ function navigate(pg) {
   curPage = pg;
   const renders = {
     'dashboard': renderDash,
+    'carrier': renderCarrierPage,
     'reporte': renderReporte,
     'ventas': renderVentas,
     'stock': renderStock,
@@ -576,6 +578,186 @@ function closeSidebar() {
   if (sidebar) sidebar.classList.remove('open');
   if (ov) ov.classList.remove('on');
   document.body.style.overflow = '';
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CARRIER PAGE — Vista completa por carrier (Colecta/Flex/TN)
+   ═══════════════════════════════════════════════════════════ */
+
+function openCarrierPage(carrier) {
+  _currentCarrier = carrier;
+  navigate('carrier');
+}
+
+async function renderCarrierPage() {
+  const carrier = _currentCarrier;
+  if (!carrier) { navigate('dashboard'); return; }
+
+  const isTN = carrier === 'tiendanube';
+  const label = carrier === 'colecta' ? 'Colecta' : carrier === 'flex' ? 'Flex' : 'Tienda Nube';
+  const hora  = carrier === 'colecta' ? '· Retiro 12:00 hs' : carrier === 'flex' ? '· Retiro 14:00 hs' : '· Tienda Web';
+  const color = carrier === 'flex' ? 'var(--green)' : 'var(--blue)';
+
+  showLoading('carrier-body');
+
+  const [ordersRes, prodLogsRes] = await Promise.all([
+    sb.from('orders')
+      .select('id,numero,ml_order_id,fecha_pedido,productos,cantidad,sku,cliente,estado,created_at,canal,subcanal')
+      .not('estado', 'in', '("cancelado","entregado","despachado")')
+      .order('created_at', { ascending: false })
+      .then(r => {
+        if (isTN) return sb.from('orders').select('id,numero,ml_order_id,fecha_pedido,productos,cantidad,sku,cliente,estado,created_at,canal,subcanal').eq('canal','tiendanube').not('estado','in','("cancelado","entregado","despachado")').order('created_at',{ascending:false});
+        return sb.from('orders').select('id,numero,ml_order_id,fecha_pedido,productos,cantidad,sku,cliente,estado,created_at,canal,subcanal').eq('canal','mercadolibre').eq('subcanal',carrier).not('estado','in','("cancelado","entregado","despachado")').order('created_at',{ascending:false});
+      }),
+    sb.from('prod_logs').select('id,modelo,sku,variante,unidades,subcanal,created_at')
+  ]);
+
+  // re-ejecutar la query correcta directamente
+  let qOrders;
+  if (isTN) {
+    qOrders = await sb.from('orders').select('id,numero,ml_order_id,fecha_pedido,productos,cantidad,sku,cliente,estado,created_at,canal,subcanal').eq('canal','tiendanube').not('estado','in','("cancelado","entregado","despachado")').order('created_at',{ascending:false});
+  } else {
+    qOrders = await sb.from('orders').select('id,numero,ml_order_id,fecha_pedido,productos,cantidad,sku,cliente,estado,created_at,canal,subcanal').eq('canal','mercadolibre').eq('subcanal',carrier).not('estado','in','("cancelado","entregado","despachado")').order('created_at',{ascending:false});
+  }
+  const prodLogs = prodLogsRes.data || [];
+  const orders   = qOrders.data || [];
+
+  const countUds = (list) => list.reduce((s,o) => {
+    const prods = o.productos || [];
+    return s + (prods.length > 0 ? prods.reduce((ss,p) => ss + parseInt(p.cantidad||0), 0) : parseInt(o.cantidad||0));
+  }, 0);
+
+  const totalPedidos = orders.length;
+  const totalUds = countUds(orders);
+
+  // Mapa pendiente
+  const mapa = {};
+  for (const ord of orders) {
+    const prods = ord.productos || [];
+    if (prods.length === 0) {
+      const key = (ord.sku || ord.id) + '||';
+      if (!mapa[key]) mapa[key] = { modelo: ord.sku || '(sin título)', color: '', pedido: 0, producido: 0, variante: '' };
+      mapa[key].pedido += parseInt(ord.cantidad || 0);
+    } else {
+      for (const p of prods) {
+        const key = (p.nombre || '') + '||' + (p.color || '');
+        if (!mapa[key]) mapa[key] = { modelo: p.nombre || '', color: p.color || '', variante: p.variante || p.color || '', pedido: 0, producido: 0 };
+        mapa[key].pedido += parseInt(p.cantidad || 0);
+      }
+    }
+  }
+  const logsCarrier = isTN
+    ? prodLogs.filter(l => l.subcanal === 'tiendanube')
+    : prodLogs.filter(l => l.subcanal === carrier);
+  for (const log of logsCarrier) {
+    const keyExact = (log.modelo||'') + '||' + (log.variante||'');
+    if (mapa[keyExact]) { mapa[keyExact].producido += parseInt(log.unidades||0); }
+    else {
+      const k = Object.keys(mapa).find(k => k.startsWith((log.modelo||')+'||')));
+      if (k) mapa[k].producido += parseInt(log.unidades||0);
+    }
+  }
+  const filas = Object.values(mapa).filter(f => f.modelo && f.pedido > 0);
+  const totalPend = filas.reduce((s,f) => s + Math.max(0, f.pedido - f.producido), 0);
+
+  const canEdit = ['owner','admin','encargado'].includes(cu.role);
+
+  $('carrier-body').innerHTML = `
+    <!-- Header -->
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px">
+      <button class="btn-ghost" onclick="navigate('dashboard')" style="padding:8px 14px;font-size:13px">← Dashboard</button>
+      <div>
+        <div style="font-size:22px;font-weight:800;color:${color}">${label}</div>
+        <div style="font-size:13px;color:var(--ink-muted)">${hora}</div>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:10px">
+        <button class="btn-ghost sm" onclick="openImportML()">↑ Importar Excel</button>
+        ${canEdit ? `<button class="btn sm" onclick="openRegisterProd()">+ Registrar Prod.</button>` : ''}
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="sg" style="margin-bottom:20px">
+      <div class="sc">
+        <div class="sc-l">Pedidos activos</div>
+        <div class="sc-v">${totalPedidos}</div>
+      </div>
+      <div class="sc">
+        <div class="sc-l">Unidades pedidas</div>
+        <div class="sc-v">${totalUds}</div>
+      </div>
+      <div class="sc ${totalPend > 0 ? 'r' : 'g'}">
+        <div class="sc-l">Pendiente producción</div>
+        <div class="sc-v">${totalPend}</div>
+      </div>
+    </div>
+
+    <!-- Tabla pendiente de producción -->
+    <div class="card" style="padding:20px;margin-bottom:20px">
+      <div style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:16px">PRODUCCIÓN PENDIENTE</div>
+      ${filas.length === 0 ? `<div style="color:var(--green);font-size:13px;padding:8px 0">Sin producción pendiente para ${label}.</div>` : `
+      <table class="dt">
+        <thead><tr>
+          <th>Modelo / Producto</th>
+          <th>Variante</th>
+          <th style="text-align:center">Pedido</th>
+          <th style="text-align:center">Producido</th>
+          <th style="text-align:center">Pendiente</th>
+          <th style="text-align:center">Progreso</th>
+          ${canEdit ? '<th></th>' : ''}
+        </tr></thead>
+        <tbody>
+          ${filas.map(f => {
+            const diff = f.pedido - f.producido;
+            const pendiente = Math.max(0, diff);
+            const surplus = Math.max(0, -diff);
+            const pct = f.pedido > 0 ? Math.min(100, Math.round((f.producido / f.pedido) * 100)) : 0;
+            const pendCell = surplus > 0
+              ? `<span style="color:var(--green);font-weight:700">+${surplus} stock</span>`
+              : pendiente > 0 ? `<span style="color:var(--red);font-weight:700">${pendiente}</span>`
+              : `<span style="color:var(--green)">✓ 0</span>`;
+            return `<tr>
+              <td style="font-weight:600">${esc(f.modelo)}</td>
+              <td>${f.variante || f.color ? `<span style="display:inline-block;padding:2px 10px;background:color-mix(in srgb,var(--blue) 10%,transparent);border:1px solid var(--blue);border-radius:20px;font-size:12px;color:var(--blue)">${esc(f.variante || f.color)}</span>` : '—'}</td>
+              <td style="text-align:center">${f.pedido}</td>
+              <td style="text-align:center;color:var(--green)">${f.producido}</td>
+              <td style="text-align:center">${pendCell}</td>
+              <td style="text-align:center">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <div style="flex:1;height:6px;background:var(--border);border-radius:4px;min-width:60px">
+                    <div style="height:100%;width:${pct}%;background:${pct>=100?'var(--green)':'var(--blue)'};border-radius:4px"></div>
+                  </div>
+                  <span style="font-size:11px;color:var(--ink-muted);min-width:28px">${pct}%</span>
+                </div>
+              </td>
+              ${canEdit ? `<td><button class="btn-ghost sm" onclick="openRegisterProd()" style="font-size:11px">+ Registrar</button></td>` : ''}
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`}
+    </div>
+
+    <!-- Lista de pedidos -->
+    <div class="card" style="padding:20px">
+      <div style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:16px">PEDIDOS (${orders.length})</div>
+      ${orders.length === 0 ? `<div style="color:var(--ink-muted);font-size:13px;padding:8px 0">Sin pedidos activos para ${label}.</div>` : `
+      <table class="dt">
+        <thead><tr><th>N°</th><th>Fecha</th><th>Productos</th><th>Estado</th></tr></thead>
+        <tbody>
+          ${orders.map(o => {
+            const prods = (o.productos||[]).map(p => `${esc(p.nombre||'')}${p.color?' ('+esc(p.color)+')':''} ×${p.cantidad}`).join(', ')
+              || (o.sku ? `${esc(o.sku)} ×${o.cantidad||1}` : '—');
+            return `<tr>
+              <td style="font-family:monospace;font-size:11px;font-weight:700">${esc(o.numero||o.id?.slice(0,8))}</td>
+              <td style="font-size:12px;color:var(--ink-muted)">${o.fecha_pedido ? fdDate(o.fecha_pedido) : fdDate(o.created_at)}</td>
+              <td style="font-size:12px;max-width:300px">${prods}</td>
+              <td>${statusB(o.estado, o.id)}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`}
+    </div>
+  `;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1146,7 +1328,14 @@ function previewML(input) {
       }
       const headers = rows[headerRowIdx].map(String);
       const headersLow = headers.map(h => h.toLowerCase());
-      const findCol = (...terms) => headers.findIndex(h => terms.some(t => h.toLowerCase().includes(t.toLowerCase())));
+      // Busca la primera columna que contenga el término más específico primero
+      const findCol = (...terms) => {
+        for (const t of terms) {
+          const idx = headers.findIndex(h => h.toLowerCase().includes(t.toLowerCase()));
+          if (idx >= 0) return idx;
+        }
+        return -1;
+      };
 
       // ── Detectar fuente: Tienda Nube vs MercadoLibre ────────────────────
       const isTN = TN_HEADER_MARKERS.some(m => headersLow.some(h => h.includes(m.toLowerCase())));
@@ -1413,15 +1602,15 @@ async function renderDash() {
   $('dash-body').innerHTML = `
     <!-- Fila 1: Carriers — lo más importante para el día -->
     <div class="sg">
-      <div class="sc ${colectaActivos.length > 0 ? 'b' : ''}" onclick="_scrollToCarrier='colecta';navigate('reporte')" style="cursor:pointer" title="Ver Reporte Diario — Colecta">
+      <div class="sc ${colectaActivos.length > 0 ? 'b' : ''}" onclick="openCarrierPage('colecta')" style="cursor:pointer" title="Ver Colecta">
         <div class="sc-l">Colecta · 12:00 hs</div>
         <div class="sc-v">${colectaActivos.length} <span style="font-size:13px;font-weight:500;color:var(--ink-muted)">ped · ${countUds(colectaActivos)} uds</span></div>
       </div>
-      <div class="sc ${flexActivos.length > 0 ? 'b' : ''}" onclick="_scrollToCarrier='flex';navigate('reporte')" style="cursor:pointer" title="Ver Reporte Diario — Flex">
+      <div class="sc ${flexActivos.length > 0 ? 'b' : ''}" onclick="openCarrierPage('flex')" style="cursor:pointer" title="Ver Flex">
         <div class="sc-l">Flex · 14:00 hs</div>
         <div class="sc-v">${flexActivos.length} <span style="font-size:13px;font-weight:500;color:var(--ink-muted)">ped · ${countUds(flexActivos)} uds</span></div>
       </div>
-      <div class="sc ${tnActivos.length > 0 ? 'b' : ''}" onclick="_scrollToCarrier='tn';navigate('reporte')" style="cursor:pointer" title="Ver Reporte Diario — Tienda Nube">
+      <div class="sc ${tnActivos.length > 0 ? 'b' : ''}" onclick="openCarrierPage('tiendanube')" style="cursor:pointer" title="Ver Tienda Nube">
         <div class="sc-l">Tienda Nube</div>
         <div class="sc-v">${tnActivos.length} <span style="font-size:13px;font-weight:500;color:var(--ink-muted)">ped · ${countUds(tnActivos)} uds</span></div>
       </div>
