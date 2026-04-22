@@ -605,25 +605,15 @@ async function renderCarrierPage() {
 
   showLoading('carrier-body');
 
-  const [ordersRes, prodLogsRes] = await Promise.all([
-    sb.from('orders')
-      .select('id,numero,ml_order_id,fecha_pedido,productos,cantidad,sku,cliente,estado,created_at,canal,subcanal')
-      .not('estado', 'in', '("cancelado","entregado","despachado")')
-      .order('created_at', { ascending: false })
-      .then(r => {
-        if (isTN) return sb.from('orders').select('id,numero,ml_order_id,fecha_pedido,productos,cantidad,sku,cliente,estado,created_at,canal,subcanal').eq('canal','tiendanube').not('estado','in','("cancelado","entregado","despachado")').order('created_at',{ascending:false});
-        return sb.from('orders').select('id,numero,ml_order_id,fecha_pedido,productos,cantidad,sku,cliente,estado,created_at,canal,subcanal').eq('canal','mercadolibre').eq('subcanal',carrier).not('estado','in','("cancelado","entregado","despachado")').order('created_at',{ascending:false});
-      }),
+  const ordersQuery = isTN
+    ? sb.from('orders').select('id,numero,ml_order_id,fecha_pedido,productos,cantidad,sku,cliente,estado,created_at,canal,subcanal').eq('canal','tiendanube').not('estado','in','("cancelado","entregado","despachado")').order('created_at',{ascending:false})
+    : sb.from('orders').select('id,numero,ml_order_id,fecha_pedido,productos,cantidad,sku,cliente,estado,created_at,canal,subcanal').eq('canal','mercadolibre').eq('subcanal',carrier).not('estado','in','("cancelado","entregado","despachado")').order('created_at',{ascending:false});
+
+  const [qOrders, prodLogsRes] = await Promise.all([
+    ordersQuery,
     sb.from('prod_logs').select('id,modelo,sku,variante,unidades,subcanal,created_at')
   ]);
 
-  // re-ejecutar la query correcta directamente
-  let qOrders;
-  if (isTN) {
-    qOrders = await sb.from('orders').select('id,numero,ml_order_id,fecha_pedido,productos,cantidad,sku,cliente,estado,created_at,canal,subcanal').eq('canal','tiendanube').not('estado','in','("cancelado","entregado","despachado")').order('created_at',{ascending:false});
-  } else {
-    qOrders = await sb.from('orders').select('id,numero,ml_order_id,fecha_pedido,productos,cantidad,sku,cliente,estado,created_at,canal,subcanal').eq('canal','mercadolibre').eq('subcanal',carrier).not('estado','in','("cancelado","entregado","despachado")').order('created_at',{ascending:false});
-  }
   const prodLogs = prodLogsRes.data || [];
   const orders   = qOrders.data || [];
 
@@ -2695,7 +2685,7 @@ const ROLE_SECTOR = { cnc:'CNC', melamina:'Melamina', pino:'Pino', embalaje:'Emb
 // Catálogo cacheado para el modal de producción
 let _prodCatalog = [];
 
-function openRegisterProd() {
+async function openRegisterProd() {
   const today = new Date().toISOString().split('T')[0];
   const sel = $('mp-model-sel');
   if (sel) sel.value = '';
@@ -2723,7 +2713,7 @@ function openRegisterProd() {
   const errEl = $('prod-carrier-error');
   if (errEl) errEl.style.display = 'none';
 
-  Promise.all([loadOrdersForProd(), loadProductCatalogForProd()]);
+  await Promise.all([loadOrdersForProd(), loadProductCatalogForProd()]);
   openM('m-prod');
   setTimeout(() => { const s = $('mp-model-sel'); if (s) s.focus(); }, 200);
 }
@@ -3299,7 +3289,8 @@ async function submitAddUser() {
   });
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
 
-  await sb.rpc('confirm_user_email', { user_id: data.user.id });
+  const { error: rpcErr } = await sb.rpc('confirm_user_email', { user_id: data.user.id });
+  if (rpcErr) { showToast('Usuario creado pero no se pudo confirmar el email: ' + rpcErr.message, 'error'); return; }
   await sb.from('profiles').upsert({ id: data.user.id, name, username, role, area, email, active: true });
   await logActivity('usuario_creado', `Nuevo usuario: ${name} (${role})`);
   closeM('modal-back');
