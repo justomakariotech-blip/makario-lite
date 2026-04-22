@@ -653,7 +653,7 @@ async function renderCarrierPage() {
     const keyExact = (log.modelo||'') + '||' + (log.variante||'');
     if (mapa[keyExact]) { mapa[keyExact].producido += parseInt(log.unidades||0); }
     else {
-      const k = Object.keys(mapa).find(k => k.startsWith((log.modelo||')+'||')));
+      const k = Object.keys(mapa).find(k => k.startsWith((log.modelo||'') + '||'));
       if (k) mapa[k].producido += parseInt(log.unidades||0);
     }
   }
