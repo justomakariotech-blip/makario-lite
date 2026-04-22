@@ -1733,6 +1733,8 @@ function previewML(input) {
         canal:    findCol('canal de venta', 'canal')
       };
 
+      const dataRows = rows.slice(headerRowIdx + 1).filter(r => r.some(c => String(c).trim() !== ''));
+
       // ── Seguridad: si la columna título tiene valores boolean, es la columna equivocada ──
       if (COL.titulo >= 0) {
         const BOOL_VALS = new Set(['si', 'no', 'sí', 'true', 'false', '1', '0', '']);
@@ -1749,8 +1751,6 @@ function previewML(input) {
           COL.titulo = better; // -1 si no encuentra nada mejor
         }
       }
-
-      const dataRows = rows.slice(headerRowIdx + 1).filter(r => r.some(c => String(c).trim() !== ''));
       excelParsedData = { headers, rows: dataRows, COL, sourceType: isTN ? 'tiendanube' : 'mercadolibre' };
 
       const detectedMsg = sourceLabel
