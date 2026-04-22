@@ -453,7 +453,6 @@ const NAV = {
     { id: 'dashboard', ic: '▦', lb: 'Dashboard' },
     { sec: 'Operaciones' },
     { id: 'reporte', ic: '▤', lb: 'Reporte Diario' },
-    { id: 'scanner', ic: '⊡', lb: 'Escáner ML' },
     { sec: 'Gestión' },
     { id: 'ventas', ic: '◈', lb: 'Ventas' },
     { id: 'stock', ic: '◇', lb: 'Stock', alerts: true },
@@ -469,7 +468,6 @@ const NAV = {
     { id: 'dashboard', ic: '▦', lb: 'Dashboard' },
     { sec: 'Operaciones' },
     { id: 'reporte', ic: '▤', lb: 'Reporte Diario' },
-    { id: 'scanner', ic: '⊡', lb: 'Escáner ML' },
     { sec: 'Gestión' },
     { id: 'ventas', ic: '◈', lb: 'Ventas' },
     { id: 'stock', ic: '◇', lb: 'Stock', alerts: true },
@@ -484,7 +482,6 @@ const NAV = {
     { id: 'dashboard', ic: '▦', lb: 'Dashboard' },
     { sec: 'Operaciones' },
     { id: 'reporte', ic: '▤', lb: 'Reporte Diario' },
-    { id: 'scanner', ic: '⊡', lb: 'Escáner ML' },
     { sec: 'Gestión' },
     { id: 'stock', ic: '◇', lb: 'Stock' },
     { sec: 'Producción' },
@@ -519,7 +516,7 @@ const NAV = {
     { sec: 'Sistema' }, { id: 'notificaciones', ic: '🔔', lb: 'Notificaciones', bell: true }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
   ],
   logistica: [
-    { sec: 'Gestión' }, { id: 'ventas', ic: '◈', lb: 'Ventas' }, { id: 'scanner', ic: '⊡', lb: 'Escáner ML' },
+    { sec: 'Gestión' }, { id: 'ventas', ic: '◈', lb: 'Ventas' },
     { sec: 'Sistema' }, { id: 'notificaciones', ic: '🔔', lb: 'Notificaciones', bell: true }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
   ],
   marketing: [
@@ -548,8 +545,6 @@ async function buildNav() {
 
 function navigate(pg) {
   closeSidebar();
-  if (curPage === 'scanner' && pg !== 'scanner') _stopScannerCamera();
-  document.removeEventListener('click', _scannerFocusGuard);
   document.querySelectorAll('.pg').forEach(p => p.classList.remove('on'));
   document.querySelectorAll('.nav-i').forEach(n => n.classList.remove('on'));
   const pageEl = $('pg-' + pg);
@@ -564,7 +559,6 @@ function navigate(pg) {
     'ventas': renderVentas,
     'stock': renderStock,
     'produccion': renderProduccion,
-    'scanner': renderScanner,
     'notificaciones': renderNotifs,
     'config': renderConfig,
     'mi-perfil': renderMiPerfil
@@ -764,210 +758,6 @@ async function renderCarrierPage() {
       </table>`}
     </div>
   `;
-}
-
-/* ═══════════════════════════════════════════════════════════
-   ESCÁNER ML — Escaneo de etiquetas MercadoLibre
-   ═══════════════════════════════════════════════════════════ */
-
-let _scannerCamera = null;   // instancia html5-qrcode activa
-let _scannerHIDTimeout = null;
-
-function renderScanner() {
-  const body = $('scanner-body');
-  if (!body) return;
-  _stopScannerCamera();
-
-  body.innerHTML = `
-    <div style="max-width:560px;margin:0 auto">
-
-      <!-- HID INPUT -->
-      <div class="card" style="padding:20px;margin-bottom:16px">
-        <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:10px">Pistola / Lector HID</div>
-        <input type="text" id="sc-hid" class="fi-inp"
-          placeholder="Apuntá la pistola acá y escaneá la etiqueta ML..."
-          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-          style="font-family:var(--mono);font-size:13px;background:color-mix(in srgb,var(--blue) 4%,transparent);border-color:var(--blue);border-style:dashed"
-          oninput="_onScannerHIDInput(this)">
-        <div style="font-size:11px;color:var(--ink-muted);margin-top:6px">El cursor debe estar en este campo. Si lo perdés, hacé clic acá.</div>
-      </div>
-
-      <!-- CAMERA BUTTON -->
-      <div class="card" style="padding:20px;margin-bottom:16px">
-        <div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:10px">Cámara del dispositivo</div>
-        <div id="sc-cam-wrap" style="display:none;margin-bottom:12px">
-          <div id="sc-cam-reader" style="width:100%;border-radius:10px;overflow:hidden"></div>
-        </div>
-        <button class="btn" id="sc-cam-btn" onclick="_toggleScannerCamera()">▶ Activar cámara</button>
-      </div>
-
-      <!-- RESULT -->
-      <div id="sc-result" style="display:none"></div>
-
-    </div>
-  `;
-
-  // auto-focus HID field
-  setTimeout(() => { const f = $('sc-hid'); if (f) f.focus(); }, 120);
-
-  // keep focus on HID when camera is not active
-  document.addEventListener('click', _scannerFocusGuard);
-}
-
-function _scannerFocusGuard(e) {
-  if (curPage !== 'scanner') { document.removeEventListener('click', _scannerFocusGuard); return; }
-  if (_scannerCamera) return; // camera active, don't steal focus
-  const f = $('sc-hid');
-  if (f && !f.contains(e.target) && !e.target.closest('#sc-cam-wrap') && !e.target.closest('#sc-cam-btn')) {
-    f.focus();
-  }
-}
-
-function _onScannerHIDInput(inp) {
-  clearTimeout(_scannerHIDTimeout);
-  // ML barcode guns type fast then stop — wait 80ms after last char
-  _scannerHIDTimeout = setTimeout(() => {
-    const raw = inp.value.trim();
-    inp.value = '';
-    if (raw) _processMLScan(raw);
-    inp.focus();
-  }, 80);
-}
-
-function _parseScanRaw(raw) {
-  // Try JSON format {"id":"46756855889","t":"lm"}
-  try {
-    const obj = JSON.parse(raw);
-    if (obj && obj.id) return String(obj.id);
-  } catch {}
-  // Try plain numeric string (some scanners read just the barcode number)
-  const m = raw.match(/\d{8,}/);
-  if (m) return m[0];
-  return raw;
-}
-
-async function _processMLScan(raw) {
-  const result = $('sc-result');
-  if (!result) return;
-
-  const mlId = _parseScanRaw(raw);
-
-  result.style.display = 'block';
-  result.innerHTML = `<div class="card" style="padding:20px;text-align:center;color:var(--ink-muted)">Buscando <span style="font-family:var(--mono)">${esc(mlId)}</span>...</div>`;
-
-  const { data: orders, error } = await sb
-    .from('orders')
-    .select('id,numero,canal,subcanal,cliente,productos,cantidad,sku,estado,prioridad,fecha_pedido,notas')
-    .eq('ml_order_id', mlId)
-    .limit(1);
-
-  if (error || !orders || orders.length === 0) {
-    result.innerHTML = `
-      <div class="card" style="padding:20px;border-left:3px solid var(--red)">
-        <div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:6px">No encontrado</div>
-        <div style="font-size:12px;color:var(--ink-muted)">ID escaneado: <span style="font-family:var(--mono)">${esc(mlId)}</span></div>
-        <div style="font-size:12px;color:var(--ink-muted);margin-top:4px">Verificá que sea un pedido importado de MercadoLibre.</div>
-      </div>`;
-    return;
-  }
-
-  const o = orders[0];
-  const estadoColor = {
-    pendiente: 'a', en_produccion: 'b', producido: 'g',
-    listo_despacho: 'g', despachado: 'b', entregado: 'g', cancelado: 'r'
-  }[o.estado] || 'b';
-
-  const subLabel = o.subcanal === 'colecta' ? 'Colecta · 12:00 hs'
-    : o.subcanal === 'flex' ? 'Flex · 14:00 hs'
-    : o.canal === 'tiendanube' ? 'Tienda Nube'
-    : o.canal || '';
-
-  // Build products list
-  let prodsHtml = '';
-  if (Array.isArray(o.productos) && o.productos.length > 0) {
-    prodsHtml = o.productos.map(p => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
-        <span>${esc(p.nombre || p.sku || '—')}</span>
-        <span style="font-weight:700;font-family:var(--mono)">${p.cantidad || 1} ud${(p.cantidad||1)>1?'s':''}</span>
-      </div>`).join('');
-  } else if (o.sku) {
-    prodsHtml = `<div style="padding:8px 0;font-size:13px">${esc(o.sku)} — ${o.cantidad || 1} uds</div>`;
-  }
-
-  result.innerHTML = `
-    <div class="card" style="padding:20px;border-left:3px solid var(--blue)">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">
-        <div>
-          <div style="font-size:16px;font-weight:800;letter-spacing:-.01em">${esc(o.numero || mlId)}</div>
-          <div style="font-size:12px;color:var(--ink-muted);margin-top:2px">${esc(subLabel)}</div>
-        </div>
-        <span class="badge-info ${estadoColor}" style="font-size:11px">${esc(SL[o.estado] || o.estado)}</span>
-      </div>
-      ${prodsHtml ? `<div style="margin-bottom:14px">${prodsHtml}</div>` : ''}
-      ${o.notas ? `<div style="font-size:12px;color:var(--ink-muted);margin-bottom:10px">Nota: ${esc(o.notas)}</div>` : ''}
-      <div style="font-size:11px;color:var(--ink-muted)">ID ML: <span style="font-family:var(--mono)">${esc(mlId)}</span></div>
-    </div>
-    <div style="text-align:center;margin-top:10px;font-size:12px;color:var(--ink-muted)">Siguiente escaneo en cualquier momento</div>
-  `;
-}
-
-async function _loadHtml5Qrcode() {
-  if (typeof Html5Qrcode !== 'undefined') return true;
-  return new Promise(resolve => {
-    const s = document.createElement('script');
-    s.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
-    s.onload = () => resolve(true);
-    s.onerror = () => resolve(false);
-    document.head.appendChild(s);
-  });
-}
-
-async function _toggleScannerCamera() {
-  if (_scannerCamera) {
-    await _stopScannerCamera();
-    return;
-  }
-  const wrap = $('sc-cam-wrap');
-  const btn = $('sc-cam-btn');
-  if (!wrap || !btn) return;
-
-  const loaded = await _loadHtml5Qrcode();
-  if (!loaded || typeof Html5Qrcode === 'undefined') {
-    showToast('No se pudo cargar la librería de cámara', 'error');
-    return;
-  }
-
-  wrap.style.display = 'block';
-  btn.textContent = '■ Detener cámara';
-  btn.classList.add('r');
-
-  _scannerCamera = new Html5Qrcode('sc-cam-reader');
-  try {
-    await _scannerCamera.start(
-      { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 260, height: 140 } },
-      (decoded) => {
-        _stopScannerCamera();
-        _processMLScan(decoded);
-      },
-      () => {}
-    );
-  } catch (err) {
-    _stopScannerCamera();
-    showToast('No se pudo acceder a la cámara: ' + err, 'error');
-  }
-}
-
-async function _stopScannerCamera() {
-  if (_scannerCamera) {
-    try { await _scannerCamera.stop(); } catch {}
-    try { _scannerCamera.clear(); } catch {}
-    _scannerCamera = null;
-  }
-  const wrap = $('sc-cam-wrap');
-  const btn = $('sc-cam-btn');
-  if (wrap) wrap.style.display = 'none';
-  if (btn) { btn.textContent = '▶ Activar cámara'; btn.classList.remove('r'); }
 }
 
 /* ═══════════════════════════════════════════════════════════
