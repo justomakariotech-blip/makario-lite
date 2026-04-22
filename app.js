@@ -547,6 +547,7 @@ async function buildNav() {
 }
 
 function navigate(pg) {
+  if (pg !== 'scanner') _jmsStopCamera();
   closeSidebar();
   document.querySelectorAll('.pg').forEach(p => p.classList.remove('on'));
   document.querySelectorAll('.nav-i').forEach(n => n.classList.remove('on'));
@@ -765,120 +766,283 @@ async function renderCarrierPage() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   ESCANER ML
+   ESCANER ML — UX App de Herramienta integrada
    ═══════════════════════════════════════════════════════════ */
 
-var _scannerCamera = null;
-var _scannerHIDTimer = null;
+var _jmsCameraScanner = null;
+var _jmsCameraActive  = false;
+var _jmsResultTimer   = null;
+var _jmsCountdownInterval = null;
+var _jmsVisHookAdded  = false;
+var JMS_TIMEOUT = 8000;
+
+var JMS_PH = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 300 300'%3E%3Crect width='300' height='300' fill='%23F0F0F0'/%3E%3Crect x='90' y='80' width='120' height='100' rx='8' fill='%23D0D0D0'/%3E%3Ccircle cx='125' cy='115' r='15' fill='%23B8B8B8'/%3E%3Cpolygon points='90,180 140,130 175,160 200,140 210,180' fill='%23C0C0C0'/%3E%3C/svg%3E";
+
+function _jmsCSS() {
+  if (document.getElementById('jms-styles')) return;
+  var s = document.createElement('style');
+  s.id = 'jms-styles';
+  s.textContent = [
+    '.jms-screen{position:absolute;inset:0;display:flex;flex-direction:column;background:#fff;overflow-y:auto;-webkit-overflow-scrolling:touch}',
+    '.jms-hidden{display:none!important}',
+    '#jms-screen-scan{align-items:center;justify-content:center;padding:20px;gap:0;text-align:center}',
+    '.jms-logo{display:flex;flex-direction:column;align-items:center;line-height:1;user-select:none;margin-bottom:40px}',
+    '.jms-logo-top{font-size:clamp(1.3rem,5vw,2rem);font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:#0D0D0D}',
+    '.jms-logo-top sup{font-size:.45em;font-weight:700;vertical-align:super;letter-spacing:0}',
+    '.jms-logo-btm{display:flex;align-items:center;gap:6px;margin-top:2px}',
+    '.jms-logo-line{flex:1;height:1px;width:28px;background:#0D0D0D}',
+    '.jms-logo-home{font-size:clamp(.9rem,3vw,1.2rem);font-style:italic;font-weight:400;letter-spacing:.02em;color:#0D0D0D;font-family:Georgia,serif}',
+    '.jms-ring{position:relative;width:96px;height:96px;margin-bottom:28px}',
+    '.jms-ring::before,.jms-ring::after{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid #0D0D0D;animation:jms-pulse 2.2s ease-out infinite}',
+    '.jms-ring::after{animation-delay:1.1s}',
+    '.jms-ring-inner{position:absolute;inset:16px;border-radius:50%;background:#0D0D0D;display:flex;align-items:center;justify-content:center}',
+    '@keyframes jms-pulse{0%{transform:scale(1);opacity:.5}100%{transform:scale(1.7);opacity:0}}',
+    '.jms-instr{font-size:clamp(1.2rem,4.5vw,1.8rem);font-weight:300;color:#0D0D0D;letter-spacing:-.01em}',
+    '.jms-instr strong{display:block;font-weight:800}',
+    '#jms-hid{position:fixed;top:-100px;left:-100px;width:1px;height:1px;opacity:0;font-size:16px}',
+    '#jms-btn-cam{display:flex;align-items:center;gap:8px;background:transparent;color:#0D0D0D;border:1.5px solid #E2E2E2;padding:13px 26px;border-radius:99px;font-size:.9375rem;font-weight:600;margin-top:28px;letter-spacing:.01em;cursor:pointer;font-family:inherit;transition:background .15s,border-color .15s}',
+    '#jms-btn-cam:hover{background:#F0F0F0;border-color:#aaa}',
+    '#jms-btn-cam:active{transform:scale(.97)}',
+    '#jms-screen-result{overflow:hidden}',
+    '.jms-photo-wrap{width:100%;flex:0 0 46vh;min-height:180px;background:#F7F7F7;display:flex;align-items:center;justify-content:center;overflow:hidden;border-bottom:1px solid #E2E2E2}',
+    '#jms-photo{width:100%;height:100%;object-fit:contain}',
+    '.jms-result-info{flex:1;padding:20px;display:flex;flex-direction:column;overflow-y:auto}',
+    '.jms-tag{display:inline-block;background:#F0F0F0;color:#888;font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:4px 10px;border-radius:99px;margin-bottom:10px;align-self:flex-start}',
+    '#jms-nombre{font-size:clamp(1.3rem,5.5vw,2rem);font-weight:800;line-height:1.15;letter-spacing:-.02em;margin-bottom:6px}',
+    '#jms-color{font-size:1rem;color:#888;margin-bottom:20px;font-weight:400}',
+    '.jms-units-card{background:#0D0D0D;color:#fff;border-radius:12px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}',
+    '.jms-units-lbl{font-size:.8125rem;text-transform:uppercase;letter-spacing:.1em;opacity:.6}',
+    '#jms-units{font-size:clamp(2rem,8vw,3.2rem);font-weight:900;letter-spacing:-.03em;line-height:1}',
+    '#jms-btn-back{width:100%;margin-bottom:8px;background:#0D0D0D;color:#fff;font-weight:700;padding:15px;letter-spacing:.04em;text-transform:uppercase;font-size:.875rem;border:none;border-radius:8px;cursor:pointer;font-family:inherit;transition:background .15s}',
+    '#jms-btn-back:hover{background:#333}',
+    '#jms-btn-back:active{transform:scale(.97)}',
+    '.jms-countdown{text-align:center;font-size:.75rem;color:#888}',
+    '#jms-screen-error{align-items:center;justify-content:center;padding:20px;text-align:center;gap:0}',
+    '.jms-err-badge{width:68px;height:68px;border-radius:50%;border:2px solid rgba(204,34,0,.2);background:rgba(204,34,0,.05);display:flex;align-items:center;justify-content:center;margin:0 auto 20px}',
+    '.jms-err-title{font-size:1rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#CC2200;margin-bottom:12px}',
+    '#jms-err-msg{font-size:1rem;color:#0D0D0D;max-width:320px;line-height:1.6;margin-bottom:32px;white-space:pre-line}',
+    '#jms-btn-err{background:#0D0D0D;color:#fff;font-weight:700;padding:15px 32px;letter-spacing:.04em;text-transform:uppercase;font-size:.875rem;border:none;border-radius:8px;cursor:pointer;font-family:inherit}',
+    '#jms-btn-err:hover{background:#333}',
+    '#jms-btn-err:active{transform:scale(.97)}',
+    '#jms-cam-ov{position:absolute;inset:0;background:#000;z-index:50;display:flex;flex-direction:column;overflow:hidden}',
+    '.jms-cam-hd{display:flex;align-items:center;gap:12px;padding:14px 20px;background:rgba(0,0,0,.9);flex-shrink:0;border-bottom:1px solid rgba(255,255,255,.1)}',
+    '.jms-cam-hd h2{flex:1;color:#fff;font-size:.875rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em}',
+    '#jms-cam-close{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.2);padding:9px 18px;border-radius:99px;font-size:.8125rem;min-height:40px;cursor:pointer;font-family:inherit}',
+    '#jms-cam-close:hover{background:rgba(255,255,255,.22)}',
+    '.jms-cam-body{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#111;min-height:0}',
+    '#jms-cam-reader{width:100%;height:100%}',
+    '#jms-cam-reader>div{width:100%!important;height:100%!important;padding-bottom:0!important}',
+    '#jms-cam-reader video{width:100%!important;height:100%!important;object-fit:cover!important;display:block}',
+    '#jms-cam-reader button{display:none!important}',
+    '#jms-cam-reader select{display:none!important}',
+    '.jms-cam-ft{background:rgba(0,0,0,.9);padding:18px 20px;text-align:center;flex-shrink:0;border-top:1px solid rgba(255,255,255,.1)}',
+    '#jms-cam-status{color:rgba(255,255,255,.8);font-size:.8125rem;font-weight:500;letter-spacing:.02em}',
+    '#jms-loading{position:absolute;inset:0;background:rgba(255,255,255,.88);backdrop-filter:blur(4px);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:60}',
+    '.jms-spin{width:40px;height:40px;border:3px solid #E2E2E2;border-top-color:#0D0D0D;border-radius:50%;animation:jms-spin .7s linear infinite;margin-bottom:14px}',
+    '@keyframes jms-spin{to{transform:rotate(360deg)}}'
+  ].join('');
+  document.head.appendChild(s);
+}
 
 function renderScanner() {
+  _jmsCSS();
   var body = $('scanner-body');
   if (!body) return;
-  stopScannerCam();
+  _jmsStopCamera();
+  _jmsCleanup();
+
   body.innerHTML =
-    '<div style="max-width:560px;margin:0 auto">' +
-      '<div class="card" style="padding:20px;margin-bottom:16px">' +
-        '<div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:10px">Pistola / Lector HID</div>' +
-        '<input type="text" id="sc-hid" class="fi-inp"' +
-          ' placeholder="Apunta la pistola aca y escana la etiqueta ML..."' +
-          ' autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"' +
-          ' style="font-family:var(--mono);font-size:13px;background:color-mix(in srgb,var(--blue) 4%,transparent);border-color:var(--blue);border-style:dashed"' +
-          ' oninput="onScannerHID(this)">' +
-        '<div style="font-size:11px;color:var(--ink-muted);margin-top:6px">El cursor debe estar en este campo.</div>' +
+    '<div class="jms-screen" id="jms-screen-scan">' +
+      '<div class="jms-logo">' +
+        '<span class="jms-logo-top">Justo Makario<sup>®</sup></span>' +
+        '<div class="jms-logo-btm"><span class="jms-logo-line"></span><span class="jms-logo-home">Home</span><span class="jms-logo-line"></span></div>' +
       '</div>' +
-      '<div class="card" style="padding:20px;margin-bottom:16px">' +
-        '<div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:10px">Camara del dispositivo</div>' +
-        '<div id="sc-cam-wrap" style="display:none;margin-bottom:12px">' +
-          '<div id="sc-cam-reader" style="width:100%;border-radius:10px;overflow:hidden"></div>' +
+      '<div class="jms-ring">' +
+        '<div class="jms-ring-inner">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:28px;height:28px">' +
+            '<path d="M3 9V6a1 1 0 0 1 1-1h3M3 15v3a1 1 0 0 0 1 1h3M21 9V6a1 1 0 0 0-1-1h-3M21 15v3a1 1 0 0 1-1 1h-3"/>' +
+            '<line x1="8" y1="12" x2="8" y2="12.01"/><line x1="12" y1="9" x2="12" y2="15"/><line x1="16" y1="12" x2="16" y2="12.01"/>' +
+          '</svg>' +
         '</div>' +
-        '<button class="btn" id="sc-cam-btn" onclick="toggleScannerCam()">Activar camara</button>' +
       '</div>' +
-      '<div id="sc-result"></div>' +
-    '</div>';
-  setTimeout(function() { var f = $('sc-hid'); if (f) f.focus(); }, 150);
-}
-
-function onScannerHID(inp) {
-  clearTimeout(_scannerHIDTimer);
-  _scannerHIDTimer = setTimeout(function() {
-    var raw = inp.value.trim();
-    inp.value = '';
-    if (raw) processScan(raw);
-    var f = $('sc-hid'); if (f) f.focus();
-  }, 80);
-}
-
-function parseScanRaw(raw) {
-  try {
-    var obj = JSON.parse(raw);
-    if (obj && obj.id) return String(obj.id);
-  } catch (e) { /* not JSON */ }
-  var m = raw.match(/\d{8,}/);
-  if (m) return m[0];
-  return raw;
-}
-
-async function processScan(raw) {
-  var result = $('sc-result');
-  if (!result) return;
-  var mlId = parseScanRaw(raw);
-  result.innerHTML = '<div class="card" style="padding:20px;text-align:center;color:var(--ink-muted)">Buscando ' + esc(mlId) + '...</div>';
-  var res = await sb.from('orders')
-    .select('id,numero,canal,subcanal,cliente,productos,cantidad,sku,estado,notas')
-    .eq('ml_order_id', mlId)
-    .limit(1);
-  if (res.error || !res.data || res.data.length === 0) {
-    result.innerHTML =
-      '<div class="card" style="padding:20px;border-left:3px solid var(--red)">' +
-        '<div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:6px">No encontrado</div>' +
-        '<div style="font-size:12px;color:var(--ink-muted)">ID: <span style="font-family:var(--mono)">' + esc(mlId) + '</span></div>' +
-        '<div style="font-size:12px;color:var(--ink-muted);margin-top:4px">Verificá que sea un pedido importado de MercadoLibre.</div>' +
-      '</div>';
-    return;
-  }
-  var o = res.data[0];
-  var colorMap = { pendiente:'a', en_produccion:'b', producido:'g', listo_despacho:'g', despachado:'b', entregado:'g', cancelado:'r' };
-  var ec = colorMap[o.estado] || 'b';
-  var subLabel = o.subcanal === 'colecta' ? 'Colecta 12:00 hs'
-    : o.subcanal === 'flex' ? 'Flex 14:00 hs'
-    : o.canal === 'tiendanube' ? 'Tienda Nube'
-    : o.canal || '';
-  var prodsHtml = '';
-  if (Array.isArray(o.productos) && o.productos.length > 0) {
-    for (var i = 0; i < o.productos.length; i++) {
-      var p = o.productos[i];
-      prodsHtml += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">' +
-        '<span>' + esc(p.nombre || p.sku || 'Sin nombre') + (p.color ? ' — ' + esc(p.color) : '') + '</span>' +
-        '<span style="font-weight:700;font-family:var(--mono)">' + (p.cantidad || 1) + ' ud' + ((p.cantidad || 1) > 1 ? 's' : '') + '</span>' +
-        '</div>';
-    }
-  } else if (o.sku) {
-    prodsHtml = '<div style="padding:8px 0;font-size:13px">' + esc(o.sku) + ' — ' + (o.cantidad || 1) + ' uds</div>';
-  }
-  result.innerHTML =
-    '<div class="card" style="padding:20px;border-left:3px solid var(--blue)">' +
-      '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">' +
-        '<div>' +
-          '<div style="font-size:16px;font-weight:800">' + esc(o.numero || mlId) + '</div>' +
-          '<div style="font-size:12px;color:var(--ink-muted);margin-top:2px">' + esc(subLabel) + '</div>' +
-        '</div>' +
-        '<span class="badge-info ' + ec + '" style="font-size:11px">' + esc(SL[o.estado] || o.estado) + '</span>' +
-      '</div>' +
-      (prodsHtml ? '<div style="margin-bottom:14px">' + prodsHtml + '</div>' : '') +
-      (o.notas ? '<div style="font-size:12px;color:var(--ink-muted);margin-bottom:10px">Nota: ' + esc(o.notas) + '</div>' : '') +
-      '<div style="font-size:11px;color:var(--ink-muted)">ID ML: <span style="font-family:var(--mono)">' + esc(mlId) + '</span></div>' +
+      '<p class="jms-instr">Escaneá una etiqueta<strong>de MercadoLibre</strong></p>' +
+      '<button id="jms-btn-cam">' +
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>' +
+        ' Escanear con cámara' +
+      '</button>' +
+      '<input id="jms-hid" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Input de escaneo">' +
     '</div>' +
-    '<div style="text-align:center;margin-top:10px;font-size:12px;color:var(--ink-muted)">Siguiente escaneo en cualquier momento</div>';
+
+    '<div class="jms-screen jms-hidden" id="jms-screen-result">' +
+      '<div class="jms-photo-wrap"><img id="jms-photo" alt="Producto"></div>' +
+      '<div class="jms-result-info">' +
+        '<span class="jms-tag">Pedido encontrado</span>' +
+        '<p id="jms-nombre"></p>' +
+        '<p id="jms-color"></p>' +
+        '<div class="jms-units-card"><span class="jms-units-lbl">Unidades a preparar</span><span id="jms-units"></span></div>' +
+        '<button id="jms-btn-back">Siguiente escaneo</button>' +
+        '<p class="jms-countdown" id="jms-countdown"></p>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="jms-screen jms-hidden" id="jms-screen-error">' +
+      '<div class="jms-err-badge">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="#CC2200" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:32px;height:32px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.5" fill="#CC2200"/></svg>' +
+      '</div>' +
+      '<p class="jms-err-title">No encontrado</p>' +
+      '<p id="jms-err-msg"></p>' +
+      '<button id="jms-btn-err">Volver a escanear</button>' +
+    '</div>' +
+
+    '<div id="jms-cam-ov" class="jms-hidden">' +
+      '<div class="jms-cam-hd"><h2>Escaneando con cámara</h2><button id="jms-cam-close">✕ Cerrar</button></div>' +
+      '<div class="jms-cam-body"><div id="jms-cam-reader"></div></div>' +
+      '<div class="jms-cam-ft"><p id="jms-cam-status">Iniciando cámara...</p></div>' +
+    '</div>' +
+
+    '<div id="jms-loading" class="jms-hidden">' +
+      '<div class="jms-spin"></div>' +
+      '<p style="font-size:.8125rem;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.08em">Buscando...</p>' +
+    '</div>';
+
+  var hid = document.getElementById('jms-hid');
+  hid.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter') return;
+    var raw = hid.value.trim();
+    hid.value = '';
+    if (raw) _jmsHandleScan(raw);
+  });
+
+  document.getElementById('jms-btn-cam').addEventListener('click', _jmsStartCamera);
+  document.getElementById('jms-cam-close').addEventListener('click', _jmsStopCamera);
+  document.getElementById('jms-btn-back').addEventListener('click', function() {
+    _jmsCleanup(); _jmsShowScreen('scan');
+  });
+  document.getElementById('jms-btn-err').addEventListener('click', function() {
+    _jmsShowScreen('scan');
+  });
+
+  body.addEventListener('click', function(e) {
+    if (!e.target.closest('#jms-cam-ov')) _jmsEnforceFocus();
+  });
+
+  if (!_jmsVisHookAdded) {
+    _jmsVisHookAdded = true;
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden) { _jmsStopCamera(); }
+      else { _jmsEnforceFocus(); }
+    });
+  }
+
+  setTimeout(_jmsEnforceFocus, 100);
 }
 
-async function toggleScannerCam() {
-  if (_scannerCamera) { stopScannerCam(); return; }
-  var wrap = $('sc-cam-wrap');
-  var btn = $('sc-cam-btn');
-  if (!wrap || !btn) return;
+function _jmsShowScreen(name) {
+  ['scan', 'result', 'error'].forEach(function(s) {
+    var el = document.getElementById('jms-screen-' + s);
+    if (el) el.classList.toggle('jms-hidden', s !== name);
+  });
+  if (name === 'scan') { _jmsCleanup(); setTimeout(_jmsEnforceFocus, 60); }
+}
+
+function _jmsEnforceFocus() {
+  if (_jmsCameraActive || curPage !== 'scanner') return;
+  var el = document.getElementById('jms-hid');
+  if (el) el.focus({ preventScroll: true });
+}
+
+function _jmsCleanup() {
+  clearTimeout(_jmsResultTimer);
+  clearInterval(_jmsCountdownInterval);
+  var cd = document.getElementById('jms-countdown');
+  if (cd) cd.textContent = '';
+}
+
+function _jmsParse(raw) {
+  if (!raw) throw new Error('El escaner no envió ningún dato.');
+  var parsed;
+  try { parsed = JSON.parse(raw); } catch (e) {
+    throw new Error('Formato inválido.\nSe esperaba JSON, se recibió:\n"' + raw + '"');
+  }
+  if (!parsed.id) throw new Error('El código no contiene un campo "id" válido.');
+  if (parsed.t && parsed.t !== 'lm') throw new Error('Tipo desconocido: "' + parsed.t + '".\nSolo se acepta "lm".');
+  return parsed;
+}
+
+async function _jmsHandleScan(raw) {
+  var loading = document.getElementById('jms-loading');
+  if (loading) loading.classList.remove('jms-hidden');
+  try {
+    var barcode;
+    try { barcode = _jmsParse(raw); } catch (err) {
+      if (loading) loading.classList.add('jms-hidden');
+      _jmsShowErr(err.message);
+      return;
+    }
+    var mlId = String(barcode.id).trim();
+    var res = await sb.from('orders')
+      .select('id,numero,canal,subcanal,productos,cantidad,sku,estado,notas,fecha_pedido')
+      .eq('ml_order_id', mlId)
+      .limit(1);
+    if (loading) loading.classList.add('jms-hidden');
+    if (res.error || !res.data || !res.data.length) {
+      _jmsShowErr('ID "' + mlId + '" no encontrado en los pedidos.\n\nVerificá que el pedido esté importado desde MercadoLibre.');
+      return;
+    }
+    _jmsShowResult(res.data[0], mlId);
+  } catch (e) {
+    if (loading) loading.classList.add('jms-hidden');
+    _jmsShowErr('Error al buscar el pedido.\nIntentá de nuevo.');
+  }
+}
+
+function _jmsShowResult(order, mlId) {
+  _jmsCleanup();
+  var photo = document.getElementById('jms-photo');
+  if (photo) { photo.src = JMS_PH; photo.onerror = function() { this.src = JMS_PH; }; }
+
+  var prods = Array.isArray(order.productos) ? order.productos : [];
+  var nombre = (prods[0] && prods[0].nombre) ? prods[0].nombre : (order.sku || mlId);
+  var color  = (prods[0] && prods[0].color)  ? prods[0].color  : '';
+  var units  = order.cantidad || (prods[0] && prods[0].cantidad) || 1;
+
+  var subLbl = order.subcanal === 'colecta' ? 'Colecta'
+    : order.subcanal === 'flex' ? 'Flex'
+    : order.canal === 'tiendanube' ? 'Tienda Nube'
+    : order.canal || '';
+  var stLbl  = SL[order.estado] || order.estado || '';
+  var colorLine = [color, subLbl, stLbl].filter(Boolean).join(' · ');
+
+  var n = document.getElementById('jms-nombre'); if (n) n.textContent = nombre;
+  var c = document.getElementById('jms-color');  if (c) c.textContent = colorLine;
+  var u = document.getElementById('jms-units');  if (u) u.textContent = units;
+
+  _jmsShowScreen('result');
+
+  var remaining = Math.round(JMS_TIMEOUT / 1000);
+  var cd = document.getElementById('jms-countdown');
+  if (cd) cd.textContent = 'Volviendo en ' + remaining + 's...';
+
+  _jmsCountdownInterval = setInterval(function() {
+    remaining--;
+    if (cd) cd.textContent = remaining > 0 ? 'Volviendo en ' + remaining + 's...' : '';
+  }, 1000);
+
+  _jmsResultTimer = setTimeout(function() {
+    clearInterval(_jmsCountdownInterval);
+    _jmsShowScreen('scan');
+  }, JMS_TIMEOUT);
+}
+
+function _jmsShowErr(msg) {
+  var el = document.getElementById('jms-err-msg');
+  if (el) el.textContent = msg;
+  _jmsShowScreen('error');
+}
+
+async function _jmsStartCamera() {
+  if (_jmsCameraActive) return;
   if (typeof Html5Qrcode === 'undefined') {
-    btn.disabled = true;
-    btn.textContent = 'Cargando...';
     var ok = await new Promise(function(resolve) {
       var s = document.createElement('script');
       s.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
@@ -886,34 +1050,52 @@ async function toggleScannerCam() {
       s.onerror = function() { resolve(false); };
       document.head.appendChild(s);
     });
-    btn.disabled = false;
     if (!ok || typeof Html5Qrcode === 'undefined') {
-      showToast('No se pudo cargar la camara', 'error');
-      btn.textContent = 'Activar camara';
+      _jmsShowErr('La librería de cámara no se pudo cargar.\n\nVerificá tu conexión a internet e intentá de nuevo.');
       return;
     }
   }
-  wrap.style.display = 'block';
-  btn.textContent = 'Detener camara';
-  _scannerCamera = new Html5Qrcode('sc-cam-reader');
-  _scannerCamera.start(
-    { facingMode: 'environment' },
-    { fps: 10, qrbox: { width: 260, height: 140 } },
-    function(decoded) { stopScannerCam(); processScan(decoded); },
-    function() {}
-  ).catch(function(err) { stopScannerCam(); showToast('No se pudo acceder a la camara', 'error'); });
+  _jmsCameraActive = true;
+  var ov = document.getElementById('jms-cam-ov');
+  var st = document.getElementById('jms-cam-status');
+  if (ov) ov.classList.remove('jms-hidden');
+  if (st) st.textContent = 'Iniciando cámara...';
+  try {
+    _jmsCameraScanner = new Html5Qrcode('jms-cam-reader');
+    await _jmsCameraScanner.start(
+      { facingMode: 'environment' },
+      { fps: 12, qrbox: function(w, h) { var side = Math.floor(Math.min(w, h) * 0.72); return { width: side, height: side }; } },
+      function(decoded) { _jmsStopCamera(); _jmsHandleScan(decoded); },
+      function() {}
+    );
+    if (st) st.textContent = 'Apuntá al código de barras de la etiqueta';
+  } catch (err) {
+    _jmsStopCamera();
+    var msg = 'No se pudo acceder a la cámara.';
+    if (err && /[Pp]ermission|[Dd]enied|[Nn]ot[Aa]llowed/.test(err.message || '')) {
+      msg = 'Permiso de cámara denegado.\n\nAndá a configuración del navegador, permití cámara para este sitio, y recargá la página.';
+    } else if (err && /[Nn]ot[Ff]ound|[Nn]o.*[Cc]amera|[Ss]ource/.test(err.message || '')) {
+      msg = 'No se encontró ninguna cámara en este dispositivo.';
+    }
+    _jmsShowErr(msg);
+  }
 }
 
-function stopScannerCam() {
-  if (_scannerCamera) {
-    _scannerCamera.stop().catch(function() {});
-    _scannerCamera = null;
+function _jmsStopCamera() {
+  if (!_jmsCameraActive) return;
+  _jmsCameraActive = false;
+  var ov = document.getElementById('jms-cam-ov');
+  if (ov) ov.classList.add('jms-hidden');
+  var rd = document.getElementById('jms-cam-reader');
+  if (rd) rd.innerHTML = '';
+  if (_jmsCameraScanner) {
+    var sc = _jmsCameraScanner;
+    _jmsCameraScanner = null;
+    sc.stop().catch(function() {});
   }
-  var wrap = $('sc-cam-wrap');
-  var btn = $('sc-cam-btn');
-  if (wrap) wrap.style.display = 'none';
-  if (btn) btn.textContent = 'Activar camara';
 }
+
+function stopScannerCam() { _jmsStopCamera(); }
 
 /* ═══════════════════════════════════════════════════════════
    REPORTE DIARIO — Importación Excel + control de producción
