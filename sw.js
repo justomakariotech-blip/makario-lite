@@ -3,7 +3,7 @@
    Offline fallback + cache de assets estáticos
    ═══════════════════════════════════════════════════════════ */
 
-const CACHE_NAME = 'macario-lite-cache-1';
+const CACHE_NAME = 'macario-lite-cache-3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
