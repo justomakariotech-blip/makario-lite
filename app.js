@@ -453,6 +453,7 @@ const NAV = {
     { id: 'dashboard', ic: '▦', lb: 'Dashboard' },
     { sec: 'Operaciones' },
     { id: 'reporte', ic: '▤', lb: 'Reporte Diario' },
+    { id: 'scanner', ic: '⊡', lb: 'Escaner ML' },
     { sec: 'Gestión' },
     { id: 'ventas', ic: '◈', lb: 'Ventas' },
     { id: 'stock', ic: '◇', lb: 'Stock', alerts: true },
@@ -468,6 +469,7 @@ const NAV = {
     { id: 'dashboard', ic: '▦', lb: 'Dashboard' },
     { sec: 'Operaciones' },
     { id: 'reporte', ic: '▤', lb: 'Reporte Diario' },
+    { id: 'scanner', ic: '⊡', lb: 'Escaner ML' },
     { sec: 'Gestión' },
     { id: 'ventas', ic: '◈', lb: 'Ventas' },
     { id: 'stock', ic: '◇', lb: 'Stock', alerts: true },
@@ -482,6 +484,7 @@ const NAV = {
     { id: 'dashboard', ic: '▦', lb: 'Dashboard' },
     { sec: 'Operaciones' },
     { id: 'reporte', ic: '▤', lb: 'Reporte Diario' },
+    { id: 'scanner', ic: '⊡', lb: 'Escaner ML' },
     { sec: 'Gestión' },
     { id: 'stock', ic: '◇', lb: 'Stock' },
     { sec: 'Producción' },
@@ -516,7 +519,7 @@ const NAV = {
     { sec: 'Sistema' }, { id: 'notificaciones', ic: '🔔', lb: 'Notificaciones', bell: true }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
   ],
   logistica: [
-    { sec: 'Gestión' }, { id: 'ventas', ic: '◈', lb: 'Ventas' },
+    { sec: 'Gestión' }, { id: 'ventas', ic: '◈', lb: 'Ventas' }, { id: 'scanner', ic: '⊡', lb: 'Escaner ML' },
     { sec: 'Sistema' }, { id: 'notificaciones', ic: '🔔', lb: 'Notificaciones', bell: true }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
   ],
   marketing: [
@@ -559,6 +562,7 @@ function navigate(pg) {
     'ventas': renderVentas,
     'stock': renderStock,
     'produccion': renderProduccion,
+    'scanner': renderScanner,
     'notificaciones': renderNotifs,
     'config': renderConfig,
     'mi-perfil': renderMiPerfil
@@ -758,6 +762,157 @@ async function renderCarrierPage() {
       </table>`}
     </div>
   `;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ESCANER ML
+   ═══════════════════════════════════════════════════════════ */
+
+var _scannerCamera = null;
+var _scannerHIDTimer = null;
+
+function renderScanner() {
+  var body = $('scanner-body');
+  if (!body) return;
+  stopScannerCam();
+  body.innerHTML =
+    '<div style="max-width:560px;margin:0 auto">' +
+      '<div class="card" style="padding:20px;margin-bottom:16px">' +
+        '<div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:10px">Pistola / Lector HID</div>' +
+        '<input type="text" id="sc-hid" class="fi-inp"' +
+          ' placeholder="Apunta la pistola aca y escana la etiqueta ML..."' +
+          ' autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"' +
+          ' style="font-family:var(--mono);font-size:13px;background:color-mix(in srgb,var(--blue) 4%,transparent);border-color:var(--blue);border-style:dashed"' +
+          ' oninput="onScannerHID(this)">' +
+        '<div style="font-size:11px;color:var(--ink-muted);margin-top:6px">El cursor debe estar en este campo.</div>' +
+      '</div>' +
+      '<div class="card" style="padding:20px;margin-bottom:16px">' +
+        '<div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:10px">Camara del dispositivo</div>' +
+        '<div id="sc-cam-wrap" style="display:none;margin-bottom:12px">' +
+          '<div id="sc-cam-reader" style="width:100%;border-radius:10px;overflow:hidden"></div>' +
+        '</div>' +
+        '<button class="btn" id="sc-cam-btn" onclick="toggleScannerCam()">Activar camara</button>' +
+      '</div>' +
+      '<div id="sc-result"></div>' +
+    '</div>';
+  setTimeout(function() { var f = $('sc-hid'); if (f) f.focus(); }, 150);
+}
+
+function onScannerHID(inp) {
+  clearTimeout(_scannerHIDTimer);
+  _scannerHIDTimer = setTimeout(function() {
+    var raw = inp.value.trim();
+    inp.value = '';
+    if (raw) processScan(raw);
+    var f = $('sc-hid'); if (f) f.focus();
+  }, 80);
+}
+
+function parseScanRaw(raw) {
+  try {
+    var obj = JSON.parse(raw);
+    if (obj && obj.id) return String(obj.id);
+  } catch (e) { /* not JSON */ }
+  var m = raw.match(/\d{8,}/);
+  if (m) return m[0];
+  return raw;
+}
+
+async function processScan(raw) {
+  var result = $('sc-result');
+  if (!result) return;
+  var mlId = parseScanRaw(raw);
+  result.innerHTML = '<div class="card" style="padding:20px;text-align:center;color:var(--ink-muted)">Buscando ' + esc(mlId) + '...</div>';
+  var res = await sb.from('orders')
+    .select('id,numero,canal,subcanal,cliente,productos,cantidad,sku,estado,notas')
+    .eq('ml_order_id', mlId)
+    .limit(1);
+  if (res.error || !res.data || res.data.length === 0) {
+    result.innerHTML =
+      '<div class="card" style="padding:20px;border-left:3px solid var(--red)">' +
+        '<div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:6px">No encontrado</div>' +
+        '<div style="font-size:12px;color:var(--ink-muted)">ID: <span style="font-family:var(--mono)">' + esc(mlId) + '</span></div>' +
+        '<div style="font-size:12px;color:var(--ink-muted);margin-top:4px">Verificá que sea un pedido importado de MercadoLibre.</div>' +
+      '</div>';
+    return;
+  }
+  var o = res.data[0];
+  var colorMap = { pendiente:'a', en_produccion:'b', producido:'g', listo_despacho:'g', despachado:'b', entregado:'g', cancelado:'r' };
+  var ec = colorMap[o.estado] || 'b';
+  var subLabel = o.subcanal === 'colecta' ? 'Colecta 12:00 hs'
+    : o.subcanal === 'flex' ? 'Flex 14:00 hs'
+    : o.canal === 'tiendanube' ? 'Tienda Nube'
+    : o.canal || '';
+  var prodsHtml = '';
+  if (Array.isArray(o.productos) && o.productos.length > 0) {
+    for (var i = 0; i < o.productos.length; i++) {
+      var p = o.productos[i];
+      prodsHtml += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">' +
+        '<span>' + esc(p.nombre || p.sku || 'Sin nombre') + (p.color ? ' — ' + esc(p.color) : '') + '</span>' +
+        '<span style="font-weight:700;font-family:var(--mono)">' + (p.cantidad || 1) + ' ud' + ((p.cantidad || 1) > 1 ? 's' : '') + '</span>' +
+        '</div>';
+    }
+  } else if (o.sku) {
+    prodsHtml = '<div style="padding:8px 0;font-size:13px">' + esc(o.sku) + ' — ' + (o.cantidad || 1) + ' uds</div>';
+  }
+  result.innerHTML =
+    '<div class="card" style="padding:20px;border-left:3px solid var(--blue)">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px">' +
+        '<div>' +
+          '<div style="font-size:16px;font-weight:800">' + esc(o.numero || mlId) + '</div>' +
+          '<div style="font-size:12px;color:var(--ink-muted);margin-top:2px">' + esc(subLabel) + '</div>' +
+        '</div>' +
+        '<span class="badge-info ' + ec + '" style="font-size:11px">' + esc(SL[o.estado] || o.estado) + '</span>' +
+      '</div>' +
+      (prodsHtml ? '<div style="margin-bottom:14px">' + prodsHtml + '</div>' : '') +
+      (o.notas ? '<div style="font-size:12px;color:var(--ink-muted);margin-bottom:10px">Nota: ' + esc(o.notas) + '</div>' : '') +
+      '<div style="font-size:11px;color:var(--ink-muted)">ID ML: <span style="font-family:var(--mono)">' + esc(mlId) + '</span></div>' +
+    '</div>' +
+    '<div style="text-align:center;margin-top:10px;font-size:12px;color:var(--ink-muted)">Siguiente escaneo en cualquier momento</div>';
+}
+
+async function toggleScannerCam() {
+  if (_scannerCamera) { stopScannerCam(); return; }
+  var wrap = $('sc-cam-wrap');
+  var btn = $('sc-cam-btn');
+  if (!wrap || !btn) return;
+  if (typeof Html5Qrcode === 'undefined') {
+    btn.disabled = true;
+    btn.textContent = 'Cargando...';
+    var ok = await new Promise(function(resolve) {
+      var s = document.createElement('script');
+      s.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+      s.onload = function() { resolve(true); };
+      s.onerror = function() { resolve(false); };
+      document.head.appendChild(s);
+    });
+    btn.disabled = false;
+    if (!ok || typeof Html5Qrcode === 'undefined') {
+      showToast('No se pudo cargar la camara', 'error');
+      btn.textContent = 'Activar camara';
+      return;
+    }
+  }
+  wrap.style.display = 'block';
+  btn.textContent = 'Detener camara';
+  _scannerCamera = new Html5Qrcode('sc-cam-reader');
+  _scannerCamera.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: { width: 260, height: 140 } },
+    function(decoded) { stopScannerCam(); processScan(decoded); },
+    function() {}
+  ).catch(function(err) { stopScannerCam(); showToast('No se pudo acceder a la camara', 'error'); });
+}
+
+function stopScannerCam() {
+  if (_scannerCamera) {
+    _scannerCamera.stop().catch(function() {});
+    _scannerCamera = null;
+  }
+  var wrap = $('sc-cam-wrap');
+  var btn = $('sc-cam-btn');
+  if (wrap) wrap.style.display = 'none';
+  if (btn) btn.textContent = 'Activar camara';
 }
 
 /* ═══════════════════════════════════════════════════════════
