@@ -2712,6 +2712,8 @@ async function openRegisterProd() {
   updateProdCarrierStyles(null);
   const errEl = $('prod-carrier-error');
   if (errEl) errEl.style.display = 'none';
+  const prodBtn = document.querySelector('#m-prod .btn.g');
+  if (prodBtn) unlockBtn(prodBtn, '✓ Registrar');
 
   await Promise.all([loadOrdersForProd(), loadProductCatalogForProd()]);
   openM('m-prod');
@@ -2862,6 +2864,7 @@ async function submitProd() {
   });
 
   if (error) { showToast('Error: ' + error.message, 'error'); unlockBtn(btn, '✓ Registrar'); return; }
+  unlockBtn(btn, '✓ Registrar');
   const carrierLabel = subcanal === 'colecta' ? 'Colecta' : subcanal === 'flex' ? 'Flex' : 'Tienda Nube';
   await logActivity('produccion_registrada', `Producción: ${sku || modelo}${variante ? ' (' + variante + ')' : ''} ×${unidades} — ${sector} — ${carrierLabel}`, orden_id);
   closeM('m-prod');
