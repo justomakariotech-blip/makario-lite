@@ -638,9 +638,6 @@ async function renderCarrierPage() {
     return s + (prods.length > 0 ? prods.reduce((ss,p) => ss + parseInt(p.cantidad||0), 0) : parseInt(o.cantidad||0));
   }, 0);
 
-  const totalPedidos = orders.length;
-  const totalUds = countUds(orders);
-
   // Build pending map — key = catalog SKU, tracks blancos/negros separately
   const _isBlanco = v => (v||'').toLowerCase().includes('blanc');
   const _isNegro  = v => (v||'').toLowerCase().includes('negr');
@@ -648,7 +645,8 @@ async function renderCarrierPage() {
   const mapa = {};
   const _mapaNew = (sku, label) => ({ sku, modelo: label, pedido: 0, blancos: 0, negros: 0, otros: 0 });
 
-  for (const ord of orders) {
+  // Helper para agregar una orden al mapa (reutilizado en ambas ramas)
+  const _addOrdToMapa = (ord) => {
     const prods = ord.productos || [];
     if (prods.length === 0) {
       const catE = ord.sku ? _cBySku[ord.sku.toLowerCase()] : null;
@@ -665,7 +663,34 @@ async function renderCarrierPage() {
         mapa[key].pedido += parseInt(p.cantidad || 0);
       }
     }
+  };
+
+  if (lastClosure && sinceDate) {
+    // ── POST-CIERRE: arrancar desde el faltante arrastrado del snapshot ──────
+    // El snapshot guarda exactamente cuánto quedó sin hacer al momento del cierre.
+    // Solo cargamos eso — no las órdenes viejas completas.
+    for (const item of (lastClosure.snapshot || [])) {
+      const falt = item.faltante || 0;
+      if (falt <= 0) continue; // item completado al cierre → no arrastrar
+      const key = item.sku || item.modelo || '';
+      if (!key) continue;
+      mapa[key] = _mapaNew(item.sku || '', item.modelo || key);
+      mapa[key].pedido = falt;
+    }
+    // Agregar SOLO las órdenes nuevas ingresadas DESPUÉS del cierre
+    for (const ord of orders.filter(o => o.created_at > sinceDate)) {
+      _addOrdToMapa(ord);
+    }
+  } else {
+    // ── SIN CIERRE PREVIO: todas las órdenes activas ──────────────────────────
+    for (const ord of orders) {
+      _addOrdToMapa(ord);
+    }
   }
+
+  // KPIs basados en el mapa ya construido (refleja la lógica de cierre)
+  const totalPedidos = Object.values(mapa).filter(f => f.pedido > 0).length;
+  const totalUds = Object.values(mapa).reduce((s, f) => s + f.pedido, 0);
 
   // Deduct prod_logs — split by color (Blanco / Negro / Otros)
   const logsCarrier = prodLogs.filter(l => l.subcanal === carrier);
@@ -2800,11 +2825,11 @@ async function renderProduccion() {
   const CCOLOR = { colecta:'var(--blue)', flex:'var(--green)', tiendanube:'var(--blue)', distribuidor:'var(--amber)' };
 
   const [ordersRes, allLogsRes, recentLogsRes, catalogRes, closuresRes] = await Promise.all([
-    sb.from('orders').select('id,sku,cantidad,productos,canal,subcanal').neq('canal','reporte').not('estado','in','("cancelado","entregado","despachado")'),
+    sb.from('orders').select('id,sku,cantidad,productos,canal,subcanal,created_at').neq('canal','reporte').not('estado','in','("cancelado","entregado","despachado")'),
     sb.from('prod_logs').select('modelo,sku,variante,unidades,subcanal,created_at'),
     sb.from('prod_logs').select('id,modelo,sku,variante,unidades,subcanal,sector,usuario_nombre,created_at').order('created_at',{ascending:false}).limit(30),
     sb.from('product_catalog').select('sku,modelo,variante').eq('es_fabricado',true).eq('activo',true),
-    sb.from('production_closures').select('carrier,fecha_cierre').order('created_at',{ascending:false})
+    sb.from('production_closures').select('carrier,fecha_cierre,snapshot').order('created_at',{ascending:false})
   ]);
 
   const activeOrders  = ordersRes.data    || [];
@@ -2812,10 +2837,10 @@ async function renderProduccion() {
   const recentLogs    = recentLogsRes.data || [];
   const catalogItems  = catalogRes.data   || [];
 
-  // Último cierre por carrier
-  const lastClose = {};
+  // Último cierre por carrier (con snapshot)
+  const lastClose = {}; // { carrier: { fecha_cierre, snapshot } }
   for (const c of (closuresRes.data || [])) {
-    if (!lastClose[c.carrier]) lastClose[c.carrier] = c.fecha_cierre;
+    if (!lastClose[c.carrier]) lastClose[c.carrier] = { fecha_cierre: c.fecha_cierre, snapshot: c.snapshot || [] };
   }
 
   // Helpers catálogo
@@ -2854,29 +2879,55 @@ async function renderProduccion() {
   // Logs por carrier (filtrados por último cierre)
   const logsByC = {};
   for (const c of CARRIERS) {
-    const since = lastClose[c]||null;
+    const since = lastClose[c]?.fecha_cierre || null;
     logsByC[c] = allLogs.filter(l=>l.subcanal===c&&(!since||l.created_at>=since));
   }
+
+  // Helper para agregar una orden al mapa de un carrier
+  const _addOrd = (mapa, ord, carrier) => {
+    const newE = (sku,label) => ({sku,modelo:label,carrier,pedido:0,blancos:0,negros:0,otros:0});
+    if (ord.sku&&ord.cantidad) {
+      const e=_catBySku[ord.sku.toLowerCase()]; const key=e?e.sku:ord.sku;
+      if(!mapa[key]) mapa[key]=newE(key, e?e.modelo:ord.sku);
+      mapa[key].pedido+=parseInt(ord.cantidad||0);
+    } else {
+      for (const p of (ord.productos||[])) {
+        const e=_matchC(p.nombre,p.sku); const key=e?e.sku:(p.nombre||'').trim();
+        if(!key) continue;
+        if(!mapa[key]) mapa[key]=newE(e?.sku||'', e?e.modelo:(p.nombre||key));
+        mapa[key].pedido+=parseInt(p.cantidad||1);
+      }
+    }
+  };
 
   // Construir filas
   const rows = [];
   for (const carrier of CARRIERS) {
     const mapa = {};
     const newE = (sku,label) => ({sku,modelo:label,carrier,pedido:0,blancos:0,negros:0,otros:0});
-    for (const ord of ordByC[carrier]) {
-      if (ord.sku&&ord.cantidad) {
-        const e=_catBySku[ord.sku.toLowerCase()]; const key=e?e.sku:ord.sku;
-        if(!mapa[key]) mapa[key]=newE(key, e?e.modelo:ord.sku);
-        mapa[key].pedido+=parseInt(ord.cantidad||0);
-      } else {
-        for (const p of (ord.productos||[])) {
-          const e=_matchC(p.nombre,p.sku); const key=e?e.sku:(p.nombre||'').trim();
-          if(!key) continue;
-          if(!mapa[key]) mapa[key]=newE(e?.sku||'', e?e.modelo:(p.nombre||key));
-          mapa[key].pedido+=parseInt(p.cantidad||1);
-        }
+    const closure = lastClose[carrier] || null;
+
+    if (closure) {
+      // POST-CIERRE: arrancar desde el faltante del snapshot + pedidos nuevos
+      for (const item of (closure.snapshot || [])) {
+        const falt = item.faltante || 0;
+        if (falt <= 0) continue;
+        const key = item.sku || item.modelo || '';
+        if (!key) continue;
+        mapa[key] = newE(item.sku || '', item.modelo || key);
+        mapa[key].pedido = falt;
+      }
+      // Órdenes ingresadas DESPUÉS del cierre
+      for (const ord of ordByC[carrier].filter(o => o.created_at > closure.fecha_cierre)) {
+        _addOrd(mapa, ord, carrier);
+      }
+    } else {
+      // SIN CIERRE: todas las órdenes activas del carrier
+      for (const ord of ordByC[carrier]) {
+        _addOrd(mapa, ord, carrier);
       }
     }
+
     for (const l of logsByC[carrier]) {
       const key=(l.sku||l.modelo||'').trim(); if(!key) continue;
       const t=mapa[key]
