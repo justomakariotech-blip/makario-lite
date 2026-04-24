@@ -156,6 +156,7 @@ function openM(id) {
 function closeM(id) {
   const el = $(id);
   if (el) { el.classList.remove('on'); document.body.style.overflow = ''; }
+  if (id === 'm-prod') closeProdCamScanner();
 }
 
 /* ═══ LOADING STATE ═══ */
@@ -438,9 +439,10 @@ async function showApp() {
   await buildNav();
   if (!realtimeSetup) { setupRealtime(); realtimeSetup = true; }
   const defaults = {
-    owner: 'dashboard', admin: 'dashboard', encargado: 'dashboard',
-    ventas: 'ventas', cnc: 'produccion', melamina: 'produccion',
-    pino: 'produccion', embalaje: 'produccion', carpinteria: 'produccion',
+    owner: 'dashboard', admin: 'dashboard',
+    encargado: 'produccion', ventas: 'ventas',
+    cnc: 'produccion', melamina: 'produccion', pino: 'produccion',
+    embalaje: 'produccion', carpinteria: 'produccion',
     logistica: 'ventas', marketing: 'notificaciones', marketing_agencia: 'notificaciones'
   };
   navigate(defaults[cu.role] || 'dashboard');
@@ -452,13 +454,13 @@ const NAV = {
     { sec: 'Principal' },
     { id: 'dashboard', ic: '▦', lb: 'Dashboard' },
     { sec: 'Operaciones' },
-    { id: 'reporte', ic: '▤', lb: 'Reporte Diario' },
     { id: 'scanner', ic: '⊡', lb: 'Escaner ML' },
     { sec: 'Gestión' },
     { id: 'ventas', ic: '◈', lb: 'Ventas' },
     { id: 'stock', ic: '◇', lb: 'Stock', alerts: true },
     { sec: 'Producción' },
     { id: 'produccion', ic: '▣', lb: 'Producción' },
+    { id: 'historico', ic: '◫', lb: 'Histórico' },
     { sec: 'Sistema' },
     { id: 'notificaciones', ic: '🔔', lb: 'Notificaciones', bell: true },
     { id: 'config', ic: '◌', lb: 'Configuración' },
@@ -468,55 +470,53 @@ const NAV = {
     { sec: 'Principal' },
     { id: 'dashboard', ic: '▦', lb: 'Dashboard' },
     { sec: 'Operaciones' },
-    { id: 'reporte', ic: '▤', lb: 'Reporte Diario' },
     { id: 'scanner', ic: '⊡', lb: 'Escaner ML' },
     { sec: 'Gestión' },
     { id: 'ventas', ic: '◈', lb: 'Ventas' },
     { id: 'stock', ic: '◇', lb: 'Stock', alerts: true },
     { sec: 'Producción' },
     { id: 'produccion', ic: '▣', lb: 'Producción' },
+    { id: 'historico', ic: '◫', lb: 'Histórico' },
     { sec: 'Sistema' },
     { id: 'notificaciones', ic: '🔔', lb: 'Notificaciones', bell: true },
     { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
   ],
   encargado: [
-    { sec: 'Principal' },
-    { id: 'dashboard', ic: '▦', lb: 'Dashboard' },
-    { sec: 'Operaciones' },
-    { id: 'reporte', ic: '▤', lb: 'Reporte Diario' },
-    { id: 'scanner', ic: '⊡', lb: 'Escaner ML' },
-    { sec: 'Gestión' },
-    { id: 'stock', ic: '◇', lb: 'Stock' },
-    { sec: 'Producción' },
     { id: 'produccion', ic: '▣', lb: 'Producción' },
+    { id: 'scanner', ic: '⊡', lb: 'Escaner ML' },
+    { id: 'stock', ic: '◇', lb: 'Stock' },
     { sec: 'Sistema' },
     { id: 'notificaciones', ic: '🔔', lb: 'Notificaciones', bell: true },
     { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
   ],
-  /* FUTURO: roles operarios con módulos propios */
   ventas: [
     { sec: 'Gestión' }, { id: 'ventas', ic: '◈', lb: 'Ventas' },
     { sec: 'Sistema' }, { id: 'notificaciones', ic: '🔔', lb: 'Notificaciones', bell: true }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
   ],
   cnc: [
-    { sec: 'Producción' }, { id: 'produccion', ic: '▣', lb: 'Sector CNC' },
-    { sec: 'Sistema' }, { id: 'notificaciones', ic: '🔔', lb: 'Notificaciones', bell: true }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
+    { id: 'produccion', ic: '▣', lb: 'Producción' },
+    { id: 'scanner', ic: '⊡', lb: 'QR / Escaner' },
+    { sec: 'Sistema' }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
   ],
   melamina: [
-    { sec: 'Producción' }, { id: 'produccion', ic: '▣', lb: 'Sector Melamina' },
-    { sec: 'Sistema' }, { id: 'notificaciones', ic: '🔔', lb: 'Notificaciones', bell: true }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
+    { id: 'produccion', ic: '▣', lb: 'Producción' },
+    { id: 'scanner', ic: '⊡', lb: 'QR / Escaner' },
+    { sec: 'Sistema' }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
   ],
   pino: [
-    { sec: 'Producción' }, { id: 'produccion', ic: '▣', lb: 'Sector Pino' },
-    { sec: 'Sistema' }, { id: 'notificaciones', ic: '🔔', lb: 'Notificaciones', bell: true }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
+    { id: 'produccion', ic: '▣', lb: 'Producción' },
+    { id: 'scanner', ic: '⊡', lb: 'QR / Escaner' },
+    { sec: 'Sistema' }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
   ],
   embalaje: [
-    { sec: 'Producción' }, { id: 'produccion', ic: '▣', lb: 'Sector Embalaje' },
-    { sec: 'Sistema' }, { id: 'notificaciones', ic: '🔔', lb: 'Notificaciones', bell: true }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
+    { id: 'produccion', ic: '▣', lb: 'Producción' },
+    { id: 'scanner', ic: '⊡', lb: 'QR / Escaner' },
+    { sec: 'Sistema' }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
   ],
   carpinteria: [
-    { sec: 'Producción' }, { id: 'produccion', ic: '▣', lb: 'Sector Carpintería' },
-    { sec: 'Sistema' }, { id: 'notificaciones', ic: '🔔', lb: 'Notificaciones', bell: true }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
+    { id: 'produccion', ic: '▣', lb: 'Producción' },
+    { id: 'scanner', ic: '⊡', lb: 'QR / Escaner' },
+    { sec: 'Sistema' }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
   ],
   logistica: [
     { sec: 'Gestión' }, { id: 'ventas', ic: '◈', lb: 'Ventas' }, { id: 'scanner', ic: '⊡', lb: 'Escaner ML' },
@@ -563,6 +563,7 @@ function navigate(pg) {
     'ventas': renderVentas,
     'stock': renderStock,
     'produccion': renderProduccion,
+    'historico': renderHistorico,
     'scanner': renderScanner,
     'notificaciones': renderNotifs,
     'config': renderConfig,
@@ -598,24 +599,90 @@ async function renderCarrierPage() {
   const carrier = _currentCarrier;
   if (!carrier) { navigate('dashboard'); return; }
 
-  const isTN = carrier === 'tiendanube';
-  const label = carrier === 'colecta' ? 'Colecta' : carrier === 'flex' ? 'Flex' : 'Tienda Nube';
-  const hora  = carrier === 'colecta' ? '· Retiro 12:00 hs' : carrier === 'flex' ? '· Retiro 14:00 hs' : '· Tienda Web';
-  const color = carrier === 'flex' ? 'var(--green)' : 'var(--blue)';
+  const isTN   = carrier === 'tiendanube';
+  const isDist = carrier === 'distribuidor';
+  const label  = carrier === 'colecta' ? 'Colecta' : carrier === 'flex' ? 'Flex' : carrier === 'distribuidor' ? 'Distribuidores' : 'Tienda Nube';
+  const hora   = carrier === 'colecta' ? '· Retiro 12:00 hs' : carrier === 'flex' ? '· Retiro 14:00 hs' : carrier === 'distribuidor' ? '· Mayoristas / bulto' : '· Tienda Web';
+  const color  = carrier === 'flex' ? 'var(--green)' : carrier === 'distribuidor' ? 'var(--amber)' : 'var(--blue)';
 
   showLoading('carrier-body');
 
+  const _baseQ = 'id,numero,ml_order_id,fecha_pedido,productos,cantidad,sku,cliente,estado,created_at,canal,subcanal';
+  const _notCancelled = '("cancelado","entregado","despachado")';
   const ordersQuery = isTN
-    ? sb.from('orders').select('id,numero,ml_order_id,fecha_pedido,productos,cantidad,sku,cliente,estado,created_at,canal,subcanal').eq('canal','tiendanube').not('estado','in','("cancelado","entregado","despachado")').order('created_at',{ascending:false})
-    : sb.from('orders').select('id,numero,ml_order_id,fecha_pedido,productos,cantidad,sku,cliente,estado,created_at,canal,subcanal').eq('canal','mercadolibre').eq('subcanal',carrier).not('estado','in','("cancelado","entregado","despachado")').order('created_at',{ascending:false});
+    ? sb.from('orders').select(_baseQ).eq('canal','tiendanube').not('estado','in',_notCancelled).order('created_at',{ascending:false})
+    : isDist
+      ? sb.from('orders').select(_baseQ).eq('canal','distribuidor').not('estado','in',_notCancelled).order('created_at',{ascending:false})
+      : sb.from('orders').select(_baseQ).eq('canal','mercadolibre').eq('subcanal',carrier).not('estado','in',_notCancelled).order('created_at',{ascending:false});
 
-  const [qOrders, prodLogsRes] = await Promise.all([
+  // Último cierre de esta carrier — para filtrar prod_logs solo del período activo
+  const { data: lastClosureArr } = await sb.from('production_closures')
+    .select('id,fecha_cierre,snapshot,pedidos_cerrados,faltante_arrastrado,cerrado_por_nombre,created_at')
+    .eq('carrier', carrier)
+    .order('created_at', { ascending: false })
+    .limit(10);
+  const lastClosure = lastClosureArr?.[0] || null;
+  const sinceDate = lastClosure?.fecha_cierre || null;
+
+  const [qOrders, prodLogsRes, catRes, batchesRes] = await Promise.all([
     ordersQuery,
-    sb.from('prod_logs').select('id,modelo,sku,variante,unidades,subcanal,created_at')
+    (sinceDate
+      ? sb.from('prod_logs').select('id,modelo,sku,variante,unidades,subcanal,created_at').gte('created_at', sinceDate)
+      : sb.from('prod_logs').select('id,modelo,sku,variante,unidades,subcanal,created_at')),
+
+    sb.from('product_catalog').select('sku,modelo,variante').eq('es_fabricado', true).eq('activo', true),
+    sb.from('orders').select('import_batch_id,import_batch_meta,created_at,cantidad,productos')
+      .eq('fuente','excel').not('import_batch_id','is',null)
+      .or(isTN ? 'canal.eq.tiendanube' : isDist ? 'canal.eq.distribuidor' : `subcanal.eq.${carrier}`)
+      .order('created_at',{ascending:false})
   ]);
 
-  const prodLogs = prodLogsRes.data || [];
-  const orders   = qOrders.data || [];
+  const prodLogs   = prodLogsRes.data || [];
+  const orders     = qOrders.data || [];
+  const catItems   = catRes.data || [];
+
+  // Construir historial de lotes
+  const batchMapC = {};
+  for (const row of (batchesRes.data || [])) {
+    const bid = row.import_batch_id;
+    if (!batchMapC[bid]) batchMapC[bid] = { id: bid, fecha: row.created_at, meta: row.import_batch_meta || {}, pedidos: 0, unidades: 0 };
+    batchMapC[bid].pedidos++;
+    const prods = row.productos || [];
+    batchMapC[bid].unidades += prods.length > 0 ? prods.reduce((s,p)=>s+parseInt(p.cantidad||0),0) : parseInt(row.cantidad||0);
+  }
+  const batches = Object.values(batchMapC).sort((a,b) => new Date(b.fecha)-new Date(a.fecha));
+
+  // Catalog helpers for SKU-based matching
+  const _cNorm = s => String(s||'').toLowerCase()
+    .replace(/[áàä]/g,'a').replace(/[éèë]/g,'e').replace(/[íìï]/g,'i').replace(/[óòö]/g,'o').replace(/[úùü]/g,'u')
+    .replace(/[^a-z0-9]/g,' ').replace(/\s+/g,' ').trim();
+  const _cWIn = (w, t) => {
+    if (t.includes(w)) return true;
+    if (t.includes(w + 's')) return true;
+    if (w.endsWith('s') && t.includes(w.slice(0,-1))) return true;
+    if (w.endsWith('o') && t.includes(w.slice(0,-1) + 'a')) return true;  // blanco→blanca
+    if (w.endsWith('a') && t.includes(w.slice(0,-1) + 'o')) return true;  // blanca→blanco
+    if (w.endsWith('os') && t.includes(w.slice(0,-2) + 'as')) return true;
+    if (w.endsWith('as') && t.includes(w.slice(0,-2) + 'os')) return true;
+    return false;
+  };
+  const _cBySku = {};
+  for (const c of catItems) _cBySku[c.sku.toLowerCase()] = c;
+  const _cFind = (nombre, skuHint) => {
+    if (skuHint) { const e = _cBySku[skuHint.toLowerCase()]; if (e) return e; }
+    const n = _cNorm(nombre);
+    let best = null, bestSc = 0;
+    for (const c of catItems) {
+      const ws = _cNorm(c.modelo).split(' ').filter(w => w.length >= 4);
+      if (!ws.length) continue;
+      const sc = ws.filter(w => _cWIn(w, n)).length / ws.length;
+      if (sc < 0.6) continue;
+      const vws = c.variante ? _cNorm(c.variante).split(' ').filter(w => w.length >= 3) : [];
+      const tot = vws.length ? (sc + vws.filter(w => _cWIn(w, n)).length / vws.length) / 2 : sc;
+      if (tot > bestSc) { bestSc = tot; best = c; }
+    }
+    return best;
+  };
 
   const countUds = (list) => list.reduce((s,o) => {
     const prods = o.productos || [];
@@ -625,35 +692,51 @@ async function renderCarrierPage() {
   const totalPedidos = orders.length;
   const totalUds = countUds(orders);
 
-  // Mapa pendiente
+  // Build pending map — key = catalog SKU, tracks blancos/negros separately
+  const _isBlanco = v => (v||'').toLowerCase().includes('blanc');
+  const _isNegro  = v => (v||'').toLowerCase().includes('negr');
+
   const mapa = {};
+  const _mapaNew = (sku, label) => ({ sku, modelo: label, pedido: 0, blancos: 0, negros: 0, otros: 0 });
+
   for (const ord of orders) {
     const prods = ord.productos || [];
     if (prods.length === 0) {
-      const key = (ord.sku || ord.id) + '||';
-      if (!mapa[key]) mapa[key] = { modelo: ord.sku || '(sin título)', color: '', pedido: 0, producido: 0, variante: '' };
+      const catE = ord.sku ? _cBySku[ord.sku.toLowerCase()] : null;
+      const key = catE ? catE.sku : (ord.sku || ord.id);
+      const label = catE ? catE.modelo : (ord.sku || '(sin título)');
+      if (!mapa[key]) mapa[key] = _mapaNew(catE?.sku || ord.sku || '', label);
       mapa[key].pedido += parseInt(ord.cantidad || 0);
     } else {
       for (const p of prods) {
-        const key = (p.nombre || '') + '||' + (p.color || '');
-        if (!mapa[key]) mapa[key] = { modelo: p.nombre || '', color: p.color || '', variante: p.variante || p.color || '', pedido: 0, producido: 0 };
+        const catE = _cFind(p.nombre, p.sku);
+        const key = catE ? catE.sku : ((p.nombre||'') + '||' + (p.color||''));
+        const label = catE ? catE.modelo : (p.nombre||'');
+        if (!mapa[key]) mapa[key] = _mapaNew(catE?.sku || '', label);
         mapa[key].pedido += parseInt(p.cantidad || 0);
       }
     }
   }
-  const logsCarrier = isTN
-    ? prodLogs.filter(l => l.subcanal === 'tiendanube')
-    : prodLogs.filter(l => l.subcanal === carrier);
+
+  // Deduct prod_logs — split by color (Blanco / Negro / Otros)
+  const logsCarrier = prodLogs.filter(l => l.subcanal === carrier);
   for (const log of logsCarrier) {
-    const keyExact = (log.modelo||'') + '||' + (log.variante||'');
-    if (mapa[keyExact]) { mapa[keyExact].producido += parseInt(log.unidades||0); }
-    else {
-      const k = Object.keys(mapa).find(k => k.startsWith((log.modelo||'') + '||'));
-      if (k) mapa[k].producido += parseInt(log.unidades||0);
-    }
+    const key = (log.sku || log.modelo || '').trim();
+    if (!key) continue;
+    const target = mapa[key] || mapa[Object.keys(mapa).find(k => k === log.modelo || k.startsWith((log.modelo||'') + '||'))];
+    if (!target) continue;
+    const uds = parseInt(log.unidades || 0);
+    if (_isBlanco(log.variante))     target.blancos += uds;
+    else if (_isNegro(log.variante)) target.negros  += uds;
+    else                             target.otros   += uds;
   }
+
   const filas = Object.values(mapa).filter(f => f.modelo && f.pedido > 0);
-  const totalPend = filas.reduce((s,f) => s + Math.max(0, f.pedido - f.producido), 0);
+  const totalPend = filas.reduce((s,f) => s + Math.max(0, f.pedido - f.blancos - f.negros - f.otros), 0);
+  // Guardar para que cerrarJornada() pueda leer el estado actual
+  _currentCarrierFilas = filas;
+  _currentCarrierFaltante = totalPend;
+  _currentCarrierOrders = orders;
 
   const canEdit = ['owner','admin','encargado'].includes(cu.role);
 
@@ -665,11 +748,24 @@ async function renderCarrierPage() {
         <div style="font-size:22px;font-weight:800;color:${color}">${label}</div>
         <div style="font-size:13px;color:var(--ink-muted)">${hora}</div>
       </div>
-      <div style="margin-left:auto;display:flex;gap:10px">
+      <div style="margin-left:auto;display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn-ghost sm" onclick="openImportML()">↑ Importar Excel</button>
-        ${canEdit ? `<button class="btn sm" onclick="openRegisterProd()">+ Registrar Prod.</button>` : ''}
+        ${canEdit ? `<button class="btn sm" onclick="openRegisterProd('${carrier}')">+ Registrar Prod.</button>` : ''}
+        ${canEdit ? `<button class="btn-ghost sm" onclick="cerrarJornada('${carrier}')" style="border-color:var(--amber);color:var(--amber)" title="Cerrar jornada y archivar producción">⬛ Cerrar jornada</button>` : ''}
       </div>
     </div>
+
+    ${lastClosure ? `
+    <div style="margin-bottom:16px;padding:10px 16px;background:color-mix(in srgb,var(--amber) 8%,transparent);border:1px solid color-mix(in srgb,var(--amber) 30%,transparent);border-radius:8px;font-size:12px;color:var(--ink-soft);display:flex;align-items:center;gap:10px">
+      <span style="font-size:16px">🕐</span>
+      <span>Jornada abierta desde <strong>${fdLong(new Date(lastClosure.fecha_cierre))}</strong> · Cerrada por ${esc(lastClosure.cerrado_por_nombre || '—')}</span>
+    </div>` : ''}
+
+    ${totalPend === 0 && totalPedidos > 0 ? `
+    <div style="margin-bottom:16px;padding:12px 16px;background:color-mix(in srgb,var(--green) 10%,transparent);border:1px solid color-mix(in srgb,var(--green) 30%,transparent);border-radius:8px;font-size:13px;color:var(--ink-soft);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      <span>✅ <strong>¡Todo producido!</strong> Podés cerrar la jornada para limpiar los contadores.</span>
+      ${canEdit ? `<button class="btn sm" onclick="cerrarJornada('${carrier}')" style="background:var(--green)">Cerrar jornada</button>` : ''}
+    </div>` : ''}
 
     <!-- KPIs -->
     <div class="sg" style="margin-bottom:20px">
@@ -693,67 +789,182 @@ async function renderCarrierPage() {
       ${filas.length === 0 ? `<div style="color:var(--green);font-size:13px;padding:8px 0">Sin producción pendiente para ${label}.</div>` : `
       <table class="dt">
         <thead><tr>
-          <th>Modelo / Producto</th>
-          <th>Variante</th>
+          <th style="font-family:monospace">SKU</th>
+          <th>Modelo</th>
           <th style="text-align:center">Pedido</th>
-          <th style="text-align:center">Producido</th>
-          <th style="text-align:center">Pendiente</th>
-          <th style="text-align:center">Progreso</th>
+          <th style="text-align:center">⬜ Blanco</th>
+          <th style="text-align:center">⬛ Negro</th>
+          <th style="text-align:center">Faltante</th>
           ${canEdit ? '<th></th>' : ''}
         </tr></thead>
         <tbody>
           ${filas.map(f => {
-            const diff = f.pedido - f.producido;
-            const pendiente = Math.max(0, diff);
-            const surplus = Math.max(0, -diff);
-            const pct = f.pedido > 0 ? Math.min(100, Math.round((f.producido / f.pedido) * 100)) : 0;
-            const pendCell = surplus > 0
+            const producido = f.blancos + f.negros + f.otros;
+            const faltante  = Math.max(0, f.pedido - producido);
+            const surplus   = Math.max(0, producido - f.pedido);
+            const faltCell  = surplus > 0
               ? `<span style="color:var(--green);font-weight:700">+${surplus} stock</span>`
-              : pendiente > 0 ? `<span style="color:var(--red);font-weight:700">${pendiente}</span>`
-              : `<span style="color:var(--green)">✓ 0</span>`;
+              : faltante > 0 ? `<span style="color:var(--red);font-weight:700;font-size:16px">${faltante}</span>`
+              : `<span style="color:var(--green);font-weight:700">✓ 0</span>`;
             return `<tr>
-              <td style="font-weight:600">${esc(f.modelo)}</td>
-              <td>${f.variante || f.color ? `<span style="display:inline-block;padding:2px 10px;background:color-mix(in srgb,var(--blue) 10%,transparent);border:1px solid var(--blue);border-radius:20px;font-size:12px;color:var(--blue)">${esc(f.variante || f.color)}</span>` : '—'}</td>
-              <td style="text-align:center">${f.pedido}</td>
-              <td style="text-align:center;color:var(--green)">${f.producido}</td>
-              <td style="text-align:center">${pendCell}</td>
-              <td style="text-align:center">
-                <div style="display:flex;align-items:center;gap:6px">
-                  <div style="flex:1;height:6px;background:var(--border);border-radius:4px;min-width:60px">
-                    <div style="height:100%;width:${pct}%;background:${pct>=100?'var(--green)':'var(--blue)'};border-radius:4px"></div>
-                  </div>
-                  <span style="font-size:11px;color:var(--ink-muted);min-width:28px">${pct}%</span>
-                </div>
-              </td>
-              ${canEdit ? `<td><button class="btn-ghost sm" onclick="openRegisterProd()" style="font-size:11px">+ Registrar</button></td>` : ''}
+              <td style="font-family:monospace;font-size:11px;font-weight:700;color:var(--blue)">${esc(f.sku || '—')}</td>
+              <td style="font-weight:600;max-width:220px">${esc(f.modelo)}</td>
+              <td style="text-align:center;font-family:monospace;font-weight:700">${f.pedido}</td>
+              <td style="text-align:center;font-family:monospace;font-weight:700;color:${f.blancos > 0 ? 'var(--green)' : 'var(--ink-muted)'}">${f.blancos}</td>
+              <td style="text-align:center;font-family:monospace;font-weight:700;color:${f.negros > 0 ? 'var(--green)' : 'var(--ink-muted)'}">${f.negros}</td>
+              <td style="text-align:center">${faltCell}</td>
+              ${canEdit ? `<td><button class="btn-ghost sm" onclick="openRegisterProd('${carrier}')" style="font-size:11px">+ Registrar</button></td>` : ''}
             </tr>`;
           }).join('')}
         </tbody>
       </table>`}
     </div>
 
-    <!-- Lista de pedidos -->
-    <div class="card" style="padding:20px">
-      <div style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:16px">PEDIDOS (${orders.length})</div>
-      ${orders.length === 0 ? `<div style="color:var(--ink-muted);font-size:13px;padding:8px 0">Sin pedidos activos para ${label}.</div>` : `
-      <table class="dt">
-        <thead><tr><th>N°</th><th>Fecha</th><th>Productos</th><th>Estado</th></tr></thead>
-        <tbody>
-          ${orders.map(o => {
-            const prods = (o.productos||[]).map(p => `${esc(p.nombre||'')}${p.color?' ('+esc(p.color)+')':''} ×${p.cantidad}`).join(', ')
-              || (o.sku ? `${esc(o.sku)} ×${o.cantidad||1}` : '—');
-            return `<tr>
-              <td style="font-family:monospace;font-size:11px;font-weight:700">${esc(o.numero||o.id?.slice(0,8))}</td>
-              <td style="font-size:12px;color:var(--ink-muted)">${o.fecha_pedido ? fdDate(o.fecha_pedido) : fdDate(o.created_at)}</td>
-              <td style="font-size:12px;max-width:300px">${prods}</td>
-              <td>${statusB(o.estado, o.id)}</td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>`}
+    <!-- Lista de pedidos — colapsable -->
+    <div class="card" style="overflow:hidden">
+      <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.carr-arr').style.transform=this.nextElementSibling.style.display==='none'?'rotate(0deg)':'rotate(180deg')"
+        style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:none;border:none;cursor:pointer;font-family:inherit">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted)">PEDIDOS INDIVIDUALES</span>
+          <span style="font-size:11px;font-weight:700;padding:2px 8px;background:var(--paper-dim);border-radius:20px;color:var(--ink-muted)">${orders.length}</span>
+        </div>
+        <span class="carr-arr" style="font-size:16px;color:var(--ink-muted);transition:transform .2s;display:inline-block">▾</span>
+      </button>
+      <div style="display:none;padding:0 20px 16px">
+        ${orders.length === 0 ? `<div style="color:var(--ink-muted);font-size:13px;padding:8px 0">Sin pedidos activos.</div>` : `
+        <table class="dt">
+          <thead><tr><th>N°</th><th>Fecha</th><th>Productos</th><th>Estado</th></tr></thead>
+          <tbody>
+            ${orders.map(o => {
+              const prods = (o.productos||[]).map(p => `${esc(p.nombre||'')}${p.color?' ('+esc(p.color)+')':''} ×${p.cantidad}`).join(', ')
+                || (o.sku ? `${esc(o.sku)} ×${o.cantidad||1}` : '—');
+              return `<tr>
+                <td style="font-family:monospace;font-size:11px;font-weight:700">${esc(o.numero||o.id?.slice(0,8))}</td>
+                <td style="font-size:12px;color:var(--ink-muted)">${o.fecha_pedido ? fdDate(o.fecha_pedido) : fdDate(o.created_at)}</td>
+                <td style="font-size:12px;max-width:300px">${prods}</td>
+                <td>${statusB(o.estado, o.id)}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>`}
+      </div>
     </div>
+
+    ${batches.length > 0 ? `
+    <!-- Lotes de importación -->
+    <div class="card" style="overflow:hidden;margin-bottom:12px">
+      <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'"
+        style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:none;border:none;cursor:pointer;font-family:inherit">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted)">LOTES IMPORTADOS</span>
+          <span style="font-size:11px;font-weight:700;padding:2px 8px;background:var(--paper-dim);border-radius:20px;color:var(--ink-muted)">${batches.length}</span>
+        </div>
+        <span style="font-size:16px;color:var(--ink-muted)">▾</span>
+      </button>
+      <div style="display:none;padding:0 20px 16px;overflow-x:auto">
+        <table class="dt">
+          <thead><tr>
+            <th>Fecha y hora</th><th>Importado por</th>
+            <th style="text-align:center">Pedidos</th><th style="text-align:center">Uds.</th>
+            ${canEdit ? '<th style="text-align:center">Acción</th>' : ''}
+          </tr></thead>
+          <tbody>
+            ${batches.map(b => {
+              const esHoy = b.fecha.startsWith(new Date().toISOString().split('T')[0]);
+              return `<tr>
+                <td style="font-size:12px">${fdTime(b.fecha)} ${esHoy?'<span class="badge-info g" style="font-size:10px;margin-left:4px">hoy</span>':''}</td>
+                <td style="font-size:12px;color:var(--ink-muted)">${esc(b.meta.importado_por||'—')}</td>
+                <td style="text-align:center;font-family:monospace;font-weight:700">${b.pedidos}</td>
+                <td style="text-align:center;font-family:monospace">${b.unidades}</td>
+                ${canEdit ? `<td style="text-align:center"><button class="btn-ghost sm r" onclick="deleteImportBatch('${b.id}',${b.pedidos})" title="Borrar este lote">✕ Eliminar</button></td>` : ''}
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>` : ''}
+
+    ${lastClosureArr && lastClosureArr.length > 0 ? `
+    <!-- Histórico de cierres -->
+    <div class="card" style="overflow:hidden">
+      <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.cl-arr').style.transform=this.nextElementSibling.style.display==='none'?'rotate(0deg)':'rotate(180deg')"
+        style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:none;border:none;cursor:pointer;font-family:inherit">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted)">HISTÓRICO DE CIERRES</span>
+          <span style="font-size:11px;font-weight:700;padding:2px 8px;background:var(--paper-dim);border-radius:20px;color:var(--ink-muted)">${lastClosureArr.length}</span>
+        </div>
+        <span class="cl-arr" style="font-size:16px;color:var(--ink-muted);transition:transform .2s;display:inline-block">▾</span>
+      </button>
+      <div style="display:none;padding:0 20px 16px">
+        <table class="dt">
+          <thead><tr><th>Fecha cierre</th><th>Cerrado por</th><th style="text-align:center">Pedidos</th><th style="text-align:center">Producido</th><th style="text-align:center">Faltante al cierre</th></tr></thead>
+          <tbody>
+            ${lastClosureArr.map(c => {
+              const snap = c.snapshot || [];
+              const totalProd = snap.reduce((s, r) => s + (r.blancos||0) + (r.negros||0), 0);
+              return `<tr>
+                <td style="font-size:12px">${fdLong(new Date(c.fecha_cierre))}</td>
+                <td style="font-size:12px;color:var(--ink-muted)">${esc(c.cerrado_por_nombre || '—')}</td>
+                <td style="text-align:center;font-family:monospace;font-weight:700">${c.pedidos_cerrados || 0}</td>
+                <td style="text-align:center;font-family:monospace;color:var(--green)">${totalProd}</td>
+                <td style="text-align:center;font-family:monospace;color:${c.faltante_arrastrado > 0 ? 'var(--amber)' : 'var(--green)'}">${c.faltante_arrastrado || 0}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>` : ''}
   `;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   CIERRE DE JORNADA
+   ═══════════════════════════════════════════════════════════ */
+async function cerrarJornada(carrier) {
+  const labelMap = { colecta:'Colecta', flex:'Flex', tiendanube:'Tienda Nube', distribuidor:'Distribuidores' };
+  const label = labelMap[carrier] || carrier;
+
+  const hayFaltante = _currentCarrierFaltante > 0;
+  const msg = hayFaltante
+    ? `¿Cerrar jornada de ${label}?\n\nQuedan ${_currentCarrierFaltante} unidades sin producir. Esas unidades NO se marcan como hechas — quedan pendientes para la próxima jornada.\n\nLo que ya fue producido se archiva.`
+    : `¿Cerrar jornada de ${label}?\n\nTodo está producido. Los contadores vuelven a cero y queda guardado como histórico.`;
+
+  if (!confirm(msg)) return;
+
+  // Leer estado actual del mapa (calculado en renderCarrierPage, guardado globalmente)
+  const snapshot = _currentCarrierFilas || [];
+  const faltanteTotal = snapshot.reduce((s, f) => s + Math.max(0, f.pedido - f.blancos - f.negros - f.otros), 0);
+  const pedidosActivos = _currentCarrierOrders?.length || 0;
+
+  const { error } = await sb.from('production_closures').insert({
+    carrier,
+    fecha_cierre: new Date().toISOString(),
+    snapshot: snapshot.map(f => ({
+      sku: f.sku,
+      modelo: f.modelo,
+      pedido: f.pedido,
+      blancos: f.blancos,
+      negros: f.negros,
+      otros: f.otros,
+      faltante: Math.max(0, f.pedido - f.blancos - f.negros - f.otros)
+    })),
+    pedidos_cerrados: pedidosActivos,
+    faltante_arrastrado: faltanteTotal,
+    cerrado_por: cu.id,
+    cerrado_por_nombre: cu.name
+  });
+
+  if (error) { showToast('Error al cerrar jornada: ' + error.message, 'error'); return; }
+
+  await logActivity('jornada_cerrada', `Jornada ${label} cerrada · ${pedidosActivos} pedidos · ${faltanteTotal} faltante arrastrado`);
+  showToast(`✓ Jornada ${label} cerrada${faltanteTotal > 0 ? ` · ${faltanteTotal} uds. pasan a la próxima jornada` : ' · Todo producido'}`);
+  renderCarrierPage();
+}
+
+// Variables globales para que cerrarJornada() acceda al estado actual del carrier
+let _currentCarrierFilas = [];
+let _currentCarrierFaltante = 0;
+let _currentCarrierOrders = [];
 
 /* ═══════════════════════════════════════════════════════════
    ESCANER ML — UX App de Herramienta integrada
@@ -1442,34 +1653,115 @@ function downloadQR() {
   window.open(url, '_blank');
 }
 
+/* ═══ Cámara QR inline en modal de producción ═══ */
+let _prodCamScanner = null;
+
+async function openProdCamScanner() {
+  const wrap = $('mp-cam-wrap');
+  if (!wrap) return;
+
+  // Cargar html5-qrcode dinámicamente si no está
+  if (typeof Html5Qrcode === 'undefined') {
+    await new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+      s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
+  }
+
+  wrap.style.display = 'block';
+  if (_prodCamScanner) { try { await _prodCamScanner.stop(); } catch(_) {} }
+  _prodCamScanner = new Html5Qrcode('mp-cam-reader');
+  try {
+    await _prodCamScanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 220, height: 220 } },
+      (decodedText) => {
+        closeProdCamScanner();
+        _processProdScanResult(decodedText.trim());
+      },
+      () => {}
+    );
+  } catch (err) {
+    wrap.style.display = 'none';
+    showToast('No se pudo acceder a la cámara', 'error');
+  }
+}
+
+async function closeProdCamScanner() {
+  const wrap = $('mp-cam-wrap');
+  if (wrap) wrap.style.display = 'none';
+  if (_prodCamScanner) {
+    try { await _prodCamScanner.stop(); } catch(_) {}
+    _prodCamScanner = null;
+  }
+}
+
+function _processProdScanResult(raw) {
+  let sku = raw;
+  try { const p = JSON.parse(raw); if (p.sku) sku = p.sku; else if (p.id) sku = p.id; } catch(_) {}
+  const found = _prodCatalog.find(p => p.sku.toLowerCase() === sku.toLowerCase());
+  if (found) {
+    const sel = $('mp-model-sel');
+    sel.value = found.id;
+    onProdModelChange(sel);
+    showToast(`✓ ${esc(found.sku)} — ${esc(found.modelo || '')}`, 'success');
+  } else {
+    showToast(`SKU "${esc(sku)}" no encontrado en el catálogo`, 'error');
+  }
+}
+
+/* ═══ Panel QR — imprimir QRs por SKU ═══ */
+async function openQrPanel() {
+  const { data: catalog } = await sb.from('product_catalog')
+    .select('sku,modelo,variante,nombre_display')
+    .eq('es_fabricado', true)
+    .eq('activo', true)
+    .order('sku');
+
+  if (!catalog || !catalog.length) {
+    showToast('No hay productos fabricados en el catálogo', 'error');
+    return;
+  }
+
+  const items = catalog.map(p => {
+    const label = p.nombre_display || (p.modelo + (p.variante ? ' ' + p.variante : ''));
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(p.sku)}&size=180x180&margin=6`;
+    return `
+      <div style="display:inline-block;text-align:center;padding:16px;border:1px solid #ddd;border-radius:8px;break-inside:avoid">
+        <img src="${qrUrl}" width="180" height="180" alt="${p.sku}" style="display:block;margin:0 auto">
+        <div style="margin-top:8px;font-family:monospace;font-weight:800;font-size:14px;color:#000">${p.sku}</div>
+        <div style="font-size:11px;color:#555;margin-top:2px;max-width:180px">${label}</div>
+      </div>`;
+  }).join('');
+
+  const win = window.open('', '_blank', 'width=900,height=700');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>QRs de Producción — Justo Makario</title>
+    <style>
+      body{font-family:-apple-system,sans-serif;padding:24px;background:#fff;color:#000}
+      h1{font-size:18px;font-weight:800;margin:0 0 4px}
+      .sub{font-size:12px;color:#888;margin-bottom:20px}
+      .grid{display:flex;flex-wrap:wrap;gap:16px}
+      @media print{button{display:none!important}}
+    </style></head><body>
+    <h1>QRs de Producción · Justo Makario</h1>
+    <div class="sub">Escanear con la app para registrar producción · ${new Date().toLocaleDateString('es-AR')}</div>
+    <button onclick="window.print()" style="margin-bottom:20px;padding:10px 20px;background:#0A0A0A;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer">🖨 Imprimir / Guardar PDF</button>
+    <div class="grid">${items}</div>
+    </body></html>`);
+  win.document.close();
+}
+
 // Escucha Enter del scanner HID en el campo mp-scan-input del modal de producción
 function onProdScanKey(e) {
   if (e.key !== 'Enter') return;
   e.preventDefault();
   const raw = $('mp-scan-input').value.trim();
   if (!raw) return;
-
-  // Intentar parsear JSON del formato ML: {"id":"...","t":"lm"}
-  let sku = raw;
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed.id) sku = parsed.id;
-  } catch (_) { /* no es JSON, usar como SKU directo */ }
-
-  // Buscar en el catálogo cargado por SKU exacto (case-insensitive)
-  const found = _prodCatalog.find(p => p.sku.toLowerCase() === sku.toLowerCase());
-  if (found) {
-    const sel = $('mp-model-sel');
-    sel.value = found.id;
-    onProdModelChange(sel);
-    $('mp-scan-input').value = '';
-    $('mp-scan-input').style.borderColor = 'var(--green)';
-    setTimeout(() => { if ($('mp-scan-input')) $('mp-scan-input').style.borderColor = ''; }, 1200);
-  } else {
-    $('mp-scan-input').style.borderColor = 'var(--red)';
-    showToast(`SKU "${esc(sku)}" no encontrado en el catálogo`, 'error');
-    setTimeout(() => { if ($('mp-scan-input')) $('mp-scan-input').style.borderColor = ''; }, 1500);
-  }
+  $('mp-scan-input').value = '';
+  _processProdScanResult(raw);
 }
 
 /* ═══ Carrier Detail ═══ */
@@ -1615,9 +1907,10 @@ function onCarrierChange() {
 
 function updateCarrierStyles(val) {
   const map = {
-    colecta:    { el: $('import-lbl-colecta'),   color: 'var(--blue)' },
-    flex:       { el: $('import-lbl-flex'),       color: 'var(--blue)' },
-    tiendanube: { el: $('import-lbl-tiendanube'), color: 'var(--blue)' }
+    colecta:      { el: $('import-lbl-colecta'),      color: 'var(--blue)' },
+    flex:         { el: $('import-lbl-flex'),          color: 'var(--blue)' },
+    tiendanube:   { el: $('import-lbl-tiendanube'),   color: 'var(--blue)' },
+    distribuidor: { el: $('import-lbl-distribuidor'), color: 'var(--amber)' }
   };
   for (const [k, { el, color }] of Object.entries(map)) {
     if (!el) continue;
@@ -1715,7 +2008,7 @@ function previewML(input) {
         titulo:   findCol('titulo de la publicacion', 'titulo del articulo', 'nombre del articulo', 'descripcion del articulo', 'titulo', 'title', 'nombre del producto', 'descripcion', 'articulo'),
         unidades: findCol('unidades', 'cantidad', 'qty', 'units'),
         comprador:findCol('comprador', 'buyer', 'nombre del comprador', 'nombre y apellido', 'nombre completo', 'cliente'),
-        sku:      findCol('sku'),
+        sku:      findCol('sku', 'codigo del publicante', 'código del publicante', 'codigo de articulo', 'código de artículo', 'cod. articulo', 'cod articulo', 'codigo articulo', 'item code', 'seller sku'),
         variante: findCol('variante', 'variacion', 'variant', 'variantes del producto', 'variante del producto'),
         dni:      findCol('dni', 'cuit', 'documento'),
         fecha:    findCol('fecha de venta', 'fecha de creacion', 'fecha'),
@@ -1831,13 +2124,14 @@ async function confirmarImportML() {
   }
 
   // Determinar canal y subcanal según el carrier seleccionado
-  const isTN = carrier === 'tiendanube';
-  const canalInsertar = isTN ? 'tiendanube' : 'mercadolibre';
-  const subcanalInsertar = isTN ? null : carrier;
+  const isTN   = carrier === 'tiendanube';
+  const isDist = carrier === 'distribuidor';
+  const canalInsertar    = isTN ? 'tiendanube' : isDist ? 'distribuidor' : 'mercadolibre';
+  const subcanalInsertar = (isTN || isDist) ? null : carrier;
 
   const inserts = [];
   for (const g of listaGrupos) {
-    if (!isTN && g.ml_order_id && existingIds.has(g.ml_order_id)) continue;
+    if (g.ml_order_id && existingIds.has(g.ml_order_id)) continue;
     const totalUnidades = g.productos.reduce((s, p) => s + p.cantidad, 0);
     const firstSku = g.productos.find(p => p.sku)?.sku || null;
     inserts.push({
@@ -1873,9 +2167,11 @@ async function confirmarImportML() {
 
   await logActivity('ml_importado', `ML Excel importado: ${inserts.length} nuevos, ${skipped} ya existían`);
   invalidateCache('orders');
+  unlockBtn(btn, 'Importar Pedidos');
   closeM('m-excel-import');
   showToast(`✓ ${inserts.length} pedidos importados${skipped > 0 ? ` · ${skipped} ya existían` : ''}`);
-  navigate('reporte');
+  if (curPage === 'carrier') renderCarrierPage();
+  else navigate('dashboard');
 }
 
 async function deleteImportBatch(batchId, totalPedidos) {
@@ -1888,7 +2184,9 @@ async function deleteImportBatch(batchId, totalPedidos) {
       await logActivity('ml_batch_eliminado', `Lote de importación eliminado: ${totalPedidos} pedidos (batch ${batchId.slice(0, 8)})`);
       invalidateCache('orders');
       showToast(`✓ Lote eliminado — ${totalPedidos} pedido${totalPedidos !== 1 ? 's' : ''} borrados`);
-      renderReporte();
+      if (curPage === 'carrier') renderCarrierPage();
+      else if (curPage === 'produccion') renderProduccion();
+      else renderDash();
     }
   );
 }
@@ -1903,6 +2201,12 @@ async function renderDash() {
   }
   showLoading('dash-body');
   $('dts').textContent = fdLong(new Date());
+  if (!document.getElementById('dash-anim-style')) {
+    const _s = document.createElement('style');
+    _s.id = 'dash-anim-style';
+    _s.textContent = '@keyframes dash-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}';
+    document.head.appendChild(_s);
+  }
 
   const today = new Date().toISOString().split('T')[0];
   const [ordersRes, stockRes, prodRes, allProdLogsRes] = await Promise.all([
@@ -1942,20 +2246,71 @@ async function renderDash() {
   const flexActivos    = activeOrders.filter(o => o.subcanal === 'flex');
   const tnActivos      = activeOrders.filter(o => o.canal === 'tiendanube');
 
+  const distribActivos = activeOrders.filter(o => o.canal === 'distribuidor');
+  const totalUdsActivas = countUds(activeOrders);
+
   $('dash-body').innerHTML = `
-    <!-- Fila 1: Carriers — lo más importante para el día -->
-    <div class="sg">
-      <div class="sc ${colectaActivos.length > 0 ? 'b' : ''}" onclick="openCarrierPage('colecta')" style="cursor:pointer" title="Ver Colecta">
-        <div class="sc-l">Colecta · 12:00 hs</div>
-        <div class="sc-v">${colectaActivos.length} <span style="font-size:13px;font-weight:500;color:var(--ink-muted)">ped · ${countUds(colectaActivos)} uds</span></div>
-      </div>
-      <div class="sc ${flexActivos.length > 0 ? 'b' : ''}" onclick="openCarrierPage('flex')" style="cursor:pointer" title="Ver Flex">
-        <div class="sc-l">Flex · 14:00 hs</div>
-        <div class="sc-v">${flexActivos.length} <span style="font-size:13px;font-weight:500;color:var(--ink-muted)">ped · ${countUds(flexActivos)} uds</span></div>
-      </div>
-      <div class="sc ${tnActivos.length > 0 ? 'b' : ''}" onclick="openCarrierPage('tiendanube')" style="cursor:pointer" title="Ver Tienda Nube">
-        <div class="sc-l">Tienda Nube</div>
-        <div class="sc-v">${tnActivos.length} <span style="font-size:13px;font-weight:500;color:var(--ink-muted)">ped · ${countUds(tnActivos)} uds</span></div>
+    <!-- ═══ HERO VENTAS ═══ -->
+    <div style="
+      background:#080808;
+      border-radius:20px;
+      padding:32px 36px 28px;
+      margin-bottom:20px;
+      position:relative;
+      overflow:hidden;
+    ">
+      <!-- líneas de cuadrícula decorativas -->
+      <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none"></div>
+      <!-- glow central -->
+      <div style="position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:400px;height:200px;background:radial-gradient(ellipse,rgba(99,102,241,.18) 0%,transparent 70%);pointer-events:none"></div>
+
+      <div style="position:relative;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap">
+
+        <!-- Lado izquierdo: label + número gigante -->
+        <div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+            <div style="width:6px;height:6px;border-radius:50%;background:#6366f1;box-shadow:0 0 8px #6366f1,0 0 20px rgba(99,102,241,.6);animation:dash-pulse 2s ease-in-out infinite"></div>
+            <span style="font-size:10px;font-weight:800;letter-spacing:.25em;text-transform:uppercase;color:rgba(255,255,255,.35)">Ventas activas</span>
+          </div>
+          <div style="font-size:clamp(5rem,14vw,9rem);font-weight:900;color:#fff;line-height:.9;letter-spacing:-.06em;font-variant-numeric:tabular-nums;text-shadow:0 0 60px rgba(99,102,241,.3)">
+            ${activeOrders.length}
+          </div>
+          <div style="margin-top:14px;font-size:12px;color:rgba(255,255,255,.3);letter-spacing:.06em;text-transform:uppercase">
+            ${totalUdsActivas} unidades · ${fdLong(new Date())}
+          </div>
+        </div>
+
+        <!-- Lado derecho: pills de canal -->
+        <div style="display:flex;flex-direction:column;gap:10px;align-self:center">
+          <div onclick="openCarrierPage('colecta')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:12px 18px;border-radius:12px;background:${colectaActivos.length ? 'rgba(99,102,241,.15)' : 'rgba(255,255,255,.04)'};border:1px solid ${colectaActivos.length ? 'rgba(99,102,241,.35)' : 'rgba(255,255,255,.07)'};transition:background .2s" title="Ver Colecta">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="width:8px;height:8px;border-radius:50%;background:${colectaActivos.length ? '#818cf8' : 'rgba(255,255,255,.15)'}${colectaActivos.length ? ';box-shadow:0 0 6px #818cf8' : ''}"></div>
+              <span style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${colectaActivos.length ? '#c7d2fe' : 'rgba(255,255,255,.3)'}">Colecta 12:00</span>
+            </div>
+            <span style="font-size:20px;font-weight:900;color:${colectaActivos.length ? '#fff' : 'rgba(255,255,255,.25)'};font-variant-numeric:tabular-nums">${colectaActivos.length}</span>
+          </div>
+          <div onclick="openCarrierPage('flex')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:12px 18px;border-radius:12px;background:${flexActivos.length ? 'rgba(34,197,94,.12)' : 'rgba(255,255,255,.04)'};border:1px solid ${flexActivos.length ? 'rgba(34,197,94,.3)' : 'rgba(255,255,255,.07)'};transition:background .2s" title="Ver Flex">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="width:8px;height:8px;border-radius:50%;background:${flexActivos.length ? '#4ade80' : 'rgba(255,255,255,.15)'}${flexActivos.length ? ';box-shadow:0 0 6px #4ade80' : ''}"></div>
+              <span style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${flexActivos.length ? '#bbf7d0' : 'rgba(255,255,255,.3)'}">Flex 14:00</span>
+            </div>
+            <span style="font-size:20px;font-weight:900;color:${flexActivos.length ? '#fff' : 'rgba(255,255,255,.25)'};font-variant-numeric:tabular-nums">${flexActivos.length}</span>
+          </div>
+          <div onclick="openCarrierPage('tiendanube')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:12px 18px;border-radius:12px;background:${tnActivos.length ? 'rgba(59,130,246,.12)' : 'rgba(255,255,255,.04)'};border:1px solid ${tnActivos.length ? 'rgba(59,130,246,.3)' : 'rgba(255,255,255,.07)'};transition:background .2s" title="Ver Tienda Nube">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="width:8px;height:8px;border-radius:50%;background:${tnActivos.length ? '#60a5fa' : 'rgba(255,255,255,.15)'}${tnActivos.length ? ';box-shadow:0 0 6px #60a5fa' : ''}"></div>
+              <span style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${tnActivos.length ? '#bfdbfe' : 'rgba(255,255,255,.3)'}">Tienda Nube</span>
+            </div>
+            <span style="font-size:20px;font-weight:900;color:${tnActivos.length ? '#fff' : 'rgba(255,255,255,.25)'};font-variant-numeric:tabular-nums">${tnActivos.length}</span>
+          </div>
+          <div onclick="openCarrierPage('distribuidor')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:12px 18px;border-radius:12px;background:${distribActivos.length ? 'rgba(245,158,11,.15)' : 'rgba(255,255,255,.04)'};border:1px solid ${distribActivos.length ? 'rgba(245,158,11,.35)' : 'rgba(255,255,255,.07)'};transition:background .2s" title="Ver Distribuidores">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="width:8px;height:8px;border-radius:50%;background:${distribActivos.length ? '#fbbf24' : 'rgba(255,255,255,.15)'}${distribActivos.length ? ';box-shadow:0 0 6px #fbbf24' : ''}"></div>
+              <span style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${distribActivos.length ? '#fde68a' : 'rgba(255,255,255,.3)'}">Distribuidores</span>
+            </div>
+            <span style="font-size:20px;font-weight:900;color:${distribActivos.length ? '#fff' : 'rgba(255,255,255,.25)'};font-variant-numeric:tabular-nums">${distribActivos.length}</span>
+          </div>
+        </div>
       </div>
     </div>
     <!-- Fila 2: Estado de producción -->
@@ -1993,15 +2348,24 @@ async function renderDash() {
           <span style="font-size:12px;color:var(--ink-muted)">${s.cantidad} ${esc(s.unidad)}</span>
         </div>`).join('')}
     </div>` : ''}
-    <div class="card" style="padding:20px">
-      <div style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:14px">PEDIDOS RECIENTES</div>
-      ${orders.slice(0, 5).map(o => `
-        <div style="display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
-          <div class="onum">${esc(o.numero || o.id?.slice(0,8))}</div>
-          <div style="flex:1;font-size:13px;color:var(--ink-soft)">${esc(o.cliente)}</div>
-          ${statusB(o.estado, o.id)}
+    <div class="card" style="overflow:hidden">
+      <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.dash-rec-arr').style.transform=this.nextElementSibling.style.display==='none'?'rotate(0deg)':'rotate(180deg')"
+        style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:none;border:none;cursor:pointer;font-family:inherit">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted)">PEDIDOS RECIENTES</span>
+          <span style="font-size:11px;font-weight:700;padding:2px 8px;background:var(--paper-dim);border-radius:20px;color:var(--ink-muted)">${orders.length}</span>
         </div>
-      `).join('') || '<div style="color:var(--ink-muted);font-size:13px;padding:16px 0">Sin pedidos aún.</div>'}
+        <span class="dash-rec-arr" style="font-size:16px;color:var(--ink-muted);transition:transform .2s;display:inline-block">▾</span>
+      </button>
+      <div style="display:none;padding:0 20px 16px">
+        ${orders.slice(0, 10).map(o => `
+          <div style="display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+            <div class="onum">${esc(o.numero || o.id?.slice(0,8))}</div>
+            <div style="flex:1;font-size:13px;color:var(--ink-soft)">${esc(o.cliente)}</div>
+            ${statusB(o.estado, o.id)}
+          </div>
+        `).join('') || '<div style="color:var(--ink-muted);font-size:13px;padding:8px 0">Sin pedidos aún.</div>'}
+      </div>
     </div>
   `;
 }
@@ -2539,142 +2903,236 @@ async function submitEditFinishedProduct(id) {
 /* ═══════════════════════════════════════════════════════════
    PRODUCCIÓN
    ═══════════════════════════════════════════════════════════ */
+/* Estado del filtro de canal en la pantalla de Producción */
+let _prodFilter = 'todos';
+function setProdFilter(val) { _prodFilter = val; renderProduccion(); }
+
 async function renderProduccion() {
   showLoading('produccion-body');
   const today = new Date().toISOString().split('T')[0];
-  const isPrivate = ['encargado', 'cnc', 'melamina', 'pino', 'embalaje', 'carpinteria'].includes(cu.role);
+  const CARRIERS = ['colecta','flex','tiendanube','distribuidor'];
+  const CLABEL = { colecta:'Colecta 12hs', flex:'Flex 14hs', tiendanube:'Tienda Nube', distribuidor:'Distribuidores' };
+  const CCOLOR = { colecta:'var(--blue)', flex:'var(--green)', tiendanube:'var(--blue)', distribuidor:'var(--amber)' };
 
-  const [ordersRes, recentLogsRes, allLogsRes] = await Promise.all([
-    sb.from('orders').select('productos').neq('canal', 'reporte').not('estado', 'in', '("cancelado","entregado","despachado")'),
-    sb.from('prod_logs').select('id,modelo,variante,unidades,unidades_falla,sector,etapa,notas,subcanal,usuario_nombre,created_at').order('created_at', { ascending: false }).limit(50),
-    sb.from('prod_logs').select('modelo,unidades')
+  const [ordersRes, allLogsRes, recentLogsRes, catalogRes, closuresRes] = await Promise.all([
+    sb.from('orders').select('id,sku,cantidad,productos,canal,subcanal').neq('canal','reporte').not('estado','in','("cancelado","entregado","despachado")'),
+    sb.from('prod_logs').select('modelo,sku,variante,unidades,subcanal,created_at'),
+    sb.from('prod_logs').select('id,modelo,sku,variante,unidades,subcanal,sector,usuario_nombre,created_at').order('created_at',{ascending:false}).limit(30),
+    sb.from('product_catalog').select('sku,modelo,variante').eq('es_fabricado',true).eq('activo',true),
+    sb.from('production_closures').select('carrier,fecha_cierre').order('created_at',{ascending:false})
   ]);
 
-  if (recentLogsRes.error) { $('produccion-body').innerHTML = '<div style="padding:20px;color:var(--ink-muted)">Error al cargar registros.</div>'; return; }
+  const activeOrders  = ordersRes.data    || [];
+  const allLogs       = allLogsRes.data   || [];
+  const recentLogs    = recentLogsRes.data || [];
+  const catalogItems  = catalogRes.data   || [];
 
-  const logs = recentLogsRes.data || [];
-  const activeOrders = ordersRes.data || [];
-  const allLogs = allLogsRes.data || [];
+  // Último cierre por carrier
+  const lastClose = {};
+  for (const c of (closuresRes.data || [])) {
+    if (!lastClose[c.carrier]) lastClose[c.carrier] = c.fecha_cierre;
+  }
 
-  // Build pending map: key is sku (when available) or product name
-  const pendingMap = {};
-  for (const ord of activeOrders) {
-    for (const p of (ord.productos || [])) {
-      const key = (p.sku || p.nombre || '').trim();
-      if (!key) continue;
-      if (!pendingMap[key]) pendingMap[key] = { label: p.nombre || p.sku || key, vendido: 0, producido: 0 };
-      pendingMap[key].vendido += parseInt(p.cantidad || 1);
+  // Helpers catálogo
+  const _nrm = s => String(s||'').toLowerCase()
+    .replace(/[áàä]/g,'a').replace(/[éèë]/g,'e').replace(/[íìï]/g,'i').replace(/[óòö]/g,'o').replace(/[úùü]/g,'u')
+    .replace(/[^a-z0-9]/g,' ').replace(/\s+/g,' ').trim();
+  const _wIn = (w,t) => t.includes(w)||t.includes(w+'s')||(w.endsWith('s')&&t.includes(w.slice(0,-1)))||
+    (w.endsWith('o')&&t.includes(w.slice(0,-1)+'a'))||(w.endsWith('a')&&t.includes(w.slice(0,-1)+'o'));
+  const _catBySku = {};
+  for (const c of catalogItems) _catBySku[c.sku.toLowerCase()] = c;
+  const _matchC = (nombre, skuHint) => {
+    if (skuHint) { const e = _catBySku[skuHint.toLowerCase()]; if (e) return e; }
+    const n = _nrm(nombre); let best=null, bs=0;
+    for (const c of catalogItems) {
+      const ws = _nrm(c.modelo).split(' ').filter(w=>w.length>=4);
+      if (!ws.length) continue;
+      const sc = ws.filter(w=>_wIn(w,n)).length/ws.length;
+      if (sc<0.6) continue;
+      const vws = c.variante?_nrm(c.variante).split(' ').filter(w=>w.length>=3):[];
+      const tot = vws.length?(sc+vws.filter(w=>_wIn(w,n)).length/vws.length)/2:sc;
+      if (tot>bs){bs=tot;best=c;}
+    }
+    return best;
+  };
+  const ISBL = v=>(v||'').toLowerCase().includes('blanc');
+  const ISNG = v=>(v||'').toLowerCase().includes('negr');
+
+  // Pedidos por carrier
+  const ordByC = {
+    colecta:     activeOrders.filter(o=>o.canal==='mercadolibre'&&o.subcanal==='colecta'),
+    flex:        activeOrders.filter(o=>o.canal==='mercadolibre'&&o.subcanal==='flex'),
+    tiendanube:  activeOrders.filter(o=>o.canal==='tiendanube'),
+    distribuidor:activeOrders.filter(o=>o.canal==='distribuidor')
+  };
+
+  // Logs por carrier (filtrados por último cierre)
+  const logsByC = {};
+  for (const c of CARRIERS) {
+    const since = lastClose[c]||null;
+    logsByC[c] = allLogs.filter(l=>l.subcanal===c&&(!since||l.created_at>=since));
+  }
+
+  // Construir filas
+  const rows = [];
+  for (const carrier of CARRIERS) {
+    const mapa = {};
+    const newE = (sku,label) => ({sku,modelo:label,carrier,pedido:0,blancos:0,negros:0,otros:0});
+    for (const ord of ordByC[carrier]) {
+      if (ord.sku&&ord.cantidad) {
+        const e=_catBySku[ord.sku.toLowerCase()]; const key=e?e.sku:ord.sku;
+        if(!mapa[key]) mapa[key]=newE(key, e?e.modelo:ord.sku);
+        mapa[key].pedido+=parseInt(ord.cantidad||0);
+      } else {
+        for (const p of (ord.productos||[])) {
+          const e=_matchC(p.nombre,p.sku); const key=e?e.sku:(p.nombre||'').trim();
+          if(!key) continue;
+          if(!mapa[key]) mapa[key]=newE(e?.sku||'', e?e.modelo:(p.nombre||key));
+          mapa[key].pedido+=parseInt(p.cantidad||1);
+        }
+      }
+    }
+    for (const l of logsByC[carrier]) {
+      const key=(l.sku||l.modelo||'').trim(); if(!key) continue;
+      const t=mapa[key]||mapa[Object.keys(mapa).find(k=>k===l.modelo||k.startsWith(l.modelo+'||'))];
+      if(!t) continue;
+      const u=parseInt(l.unidades||0);
+      if(ISBL(l.variante)) t.blancos+=u; else if(ISNG(l.variante)) t.negros+=u; else t.otros+=u;
+    }
+    for (const e of Object.values(mapa)) {
+      if(e.pedido<=0) continue;
+      e.faltante=Math.max(0,e.pedido-e.blancos-e.negros-e.otros);
+      rows.push(e);
     }
   }
-  // Subtract all-time prod_logs (match by sku first, then modelo)
-  for (const l of allLogs) {
-    const key = (l.sku || l.modelo || '').trim();
-    if (!key) continue;
-    if (!pendingMap[key]) pendingMap[key] = { label: l.modelo || key, vendido: 0, producido: 0 };
-    pendingMap[key].producido += parseInt(l.unidades || 0);
-  }
 
-  const pendingRows = Object.entries(pendingMap)
-    .map(([key, d]) => ({ modelo: d.label || key, vendido: d.vendido, producido: Math.min(d.producido, d.vendido), restante: Math.max(0, d.vendido - d.producido) }))
-    .filter(r => r.vendido > 0)
-    .sort((a, b) => b.restante - a.restante);
+  // Filtrar y ordenar
+  const fRows = _prodFilter==='todos' ? rows : rows.filter(r=>r.carrier===_prodFilter);
+  fRows.sort((a,b)=>(a.faltante>0&&b.faltante===0)?-1:(a.faltante===0&&b.faltante>0)?1:b.faltante-a.faltante);
 
-  const totalPending = pendingRows.reduce((a, r) => a + r.restante, 0);
-  const todayLogs = logs.filter(l => l.created_at?.startsWith(today));
-  const todayUnits = todayLogs.reduce((a, l) => a + (l.unidades || 0), 0);
-  const todayWaste = todayLogs.reduce((a, l) => a + (l.unidades_falla || 0), 0);
+  // KPIs
+  const totPedido  = fRows.reduce((s,r)=>s+r.pedido,0);
+  const totBlancos = fRows.reduce((s,r)=>s+r.blancos,0);
+  const totNegros  = fRows.reduce((s,r)=>s+r.negros,0);
+  const totProd    = totBlancos+totNegros;
+  const totFalt    = fRows.reduce((s,r)=>s+r.faltante,0);
+  const todayUnits = recentLogs.filter(l=>l.created_at?.startsWith(today)).reduce((s,l)=>s+(l.unidades||0),0);
+  const progPct    = totPedido>0?Math.min(100,Math.round((totProd/totPedido)*100)):0;
+
+  const showCanal  = _prodFilter==='todos';
+  const presetC    = _prodFilter==='todos'?'':_prodFilter;
 
   $('produccion-body').innerHTML = `
-    <div class="sg" style="margin-bottom:20px">
-      <div class="sc g">
-        <div class="sc-l">Unidades hoy</div>
-        <div class="sc-v">${todayUnits}</div>
+    <!-- Header sticky -->
+    <div style="position:sticky;top:0;z-index:10;background:var(--paper);padding:12px 0 8px;margin-bottom:16px;border-bottom:1px solid var(--border)">
+      <!-- Barra de progreso -->
+      <div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-size:10px;font-weight:700;color:var(--ink-muted);letter-spacing:.08em;text-transform:uppercase">Progreso del día</span>
+          <span style="font-size:11px;font-weight:700;color:var(--ink-soft)">${todayUnits} uds. producidas hoy · ${progPct}%</span>
+        </div>
+        <div style="height:7px;background:var(--paper-dim);border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:${progPct}%;background:${progPct>=100?'var(--green)':'var(--blue)'};border-radius:4px;transition:width .5s ease"></div>
+        </div>
       </div>
-      <div class="sc ${totalPending > 0 ? 'r' : 'g'}">
-        <div class="sc-l">Pendiente acumulado</div>
-        <div class="sc-v">${totalPending}</div>
-      </div>
-      <div class="sc ${todayWaste > 0 ? 'r' : ''}">
-        <div class="sc-l">Fallas hoy</div>
-        <div class="sc-v">${todayWaste}</div>
-      </div>
-      <div class="sc b">
-        <div class="sc-l">Modelos activos</div>
-        <div class="sc-v">${pendingRows.filter(r => r.restante > 0).length}</div>
+      <!-- Tabs de canal + botones -->
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div style="display:flex;gap:4px;flex-wrap:wrap;flex:1">
+          ${['todos',...CARRIERS].map(c=>{
+            const lbl=c==='todos'?'Todos':CLABEL[c];
+            const cnt=c==='todos'?rows.length:rows.filter(r=>r.carrier===c).length;
+            const isOn=_prodFilter===c;
+            const col=c==='todos'?'#0A0A0A':(CCOLOR[c]||'#0A0A0A');
+            return `<button onclick="setProdFilter('${c}')" style="padding:6px 12px;border-radius:20px;border:1.5px solid ${isOn?col:'var(--border)'};background:${isOn?(c==='todos'?'#0A0A0A':col.replace(')',',0.12)').replace('var(','rgba(').replace('--blue','59,130,246').replace('--green','34,197,94').replace('--amber','245,158,11')):'transparent'};color:${isOn?(c==='todos'?'#fff':col):'var(--ink-muted)'};font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s">${lbl}${cnt>0?` (${cnt})`:''}</button>`;
+          }).join('')}
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn sm" onclick="openRegisterProd('${presetC}')">+ Registrar</button>
+          <button class="btn-ghost sm" onclick="openProdCamScanner()" title="Escanear QR">📷 QR</button>
+        </div>
       </div>
     </div>
-    ${pendingRows.length ? `
-    <div class="card" style="padding:20px;margin-bottom:16px">
-      <div style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:14px">PENDIENTE DE PRODUCCIÓN (acumulado)</div>
+
+    <!-- KPIs -->
+    <div class="sg" style="margin-bottom:16px">
+      <div class="sc ${totFalt>0?'r':'g'}"><div class="sc-l">Faltante</div><div class="sc-v">${totFalt}</div></div>
+      <div class="sc"><div class="sc-l">⬜ Blancos</div><div class="sc-v">${totBlancos}</div></div>
+      <div class="sc"><div class="sc-l">⬛ Negros</div><div class="sc-v">${totNegros}</div></div>
+      <div class="sc b"><div class="sc-l">Total pedido</div><div class="sc-v">${totPedido}</div></div>
+    </div>
+
+    <!-- Tabla -->
+    ${fRows.length===0 ? `
+      <div style="text-align:center;padding:56px 20px;color:var(--ink-muted)">
+        <div style="font-size:44px;opacity:.12;margin-bottom:12px">✓</div>
+        <div style="font-size:14px;font-weight:700">Sin pendiente${_prodFilter!=='todos'?' en '+CLABEL[_prodFilter]:''}</div>
+      </div>
+    ` : `
+    <div class="card" style="padding:20px;margin-bottom:12px">
       <div style="overflow-x:auto">
         <table class="dt">
           <thead><tr>
+            <th style="font-family:monospace">SKU</th>
             <th>Modelo</th>
+            ${showCanal?'<th>Canal</th>':''}
             <th style="text-align:center">Pedido</th>
-            <th style="text-align:center">Producido</th>
-            <th style="text-align:center">Restante</th>
-            <th style="text-align:center">Avance</th>
+            <th style="text-align:center">⬜ Blanco</th>
+            <th style="text-align:center">⬛ Negro</th>
+            <th style="text-align:center">Faltante</th>
           </tr></thead>
           <tbody>
-            ${pendingRows.map(r => {
-              const pct = r.vendido > 0 ? Math.round((r.producido / r.vendido) * 100) : 100;
-              const done = r.restante === 0;
-              return `<tr>
-                <td style="font-weight:600">${esc(r.modelo)}</td>
-                <td style="text-align:center;font-family:var(--mono);font-weight:700">${r.vendido}</td>
-                <td style="text-align:center;font-family:var(--mono);color:var(--green)">${r.producido}</td>
-                <td style="text-align:center;font-family:var(--mono);font-weight:700;color:${done ? 'var(--green)' : 'var(--red)'}">${r.restante}</td>
-                <td style="text-align:center">
-                  <div style="display:flex;align-items:center;gap:6px;justify-content:center">
-                    <div style="width:50px;height:4px;background:var(--paper-dim)">
-                      <div style="width:${Math.min(100,pct)}%;height:100%;background:${done ? 'var(--green)' : 'var(--blue)'}"></div>
-                    </div>
-                    <span style="font-size:10px;font-family:var(--mono);color:var(--ink-muted)">${pct}%</span>
-                  </div>
-                </td>
+            ${fRows.map(r=>{
+              const done=r.faltante===0;
+              const faltCell=done
+                ?`<span style="color:var(--green);font-weight:700">✓ 0</span>`
+                :`<span style="color:var(--red);font-weight:700;font-size:16px">${r.faltante}</span>`;
+              const cBadge=`<span style="font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700;color:${CCOLOR[r.carrier]};background:color-mix(in srgb,${CCOLOR[r.carrier]} 12%,transparent)">${CLABEL[r.carrier]||r.carrier}</span>`;
+              return `<tr style="${done?'opacity:.5':''}">
+                <td style="font-family:monospace;font-size:11px;font-weight:700;color:var(--blue)">${esc(r.sku||'—')}</td>
+                <td style="font-weight:${done?400:600}">${esc(r.modelo)}</td>
+                ${showCanal?`<td>${cBadge}</td>`:''}
+                <td style="text-align:center;font-family:monospace;font-weight:700">${r.pedido}</td>
+                <td style="text-align:center;font-family:monospace;font-weight:700;color:${r.blancos>0?'var(--green)':'var(--ink-muted)'}">${r.blancos}</td>
+                <td style="text-align:center;font-family:monospace;font-weight:700;color:${r.negros>0?'var(--green)':'var(--ink-muted)'}">${r.negros}</td>
+                <td style="text-align:center">${faltCell}</td>
               </tr>`;
             }).join('')}
           </tbody>
         </table>
       </div>
-    </div>` : ''}
-    <div class="card" style="padding:20px">
-      <div style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:14px">REGISTROS RECIENTES</div>
-      ${logs.length ? `
-        <div style="overflow-x:auto">
-          <table class="dt">
-            <thead><tr>
-              <th>Fecha</th><th>Modelo</th><th>Para</th><th>Etapa</th><th>Sector</th>
-              <th style="text-align:center">Uds.</th><th style="text-align:center">Fallas</th>
-              ${!isPrivate ? '<th>Usuario</th>' : ''}
-              <th></th>
-            </tr></thead>
-            <tbody>
-              ${logs.map(l => {
-                const carrierBadge = l.subcanal === 'colecta'
-                  ? `<span class="badge-info b" style="font-size:10px">Colecta</span>`
-                  : l.subcanal === 'flex'
-                  ? `<span class="badge-info g" style="font-size:10px">Flex</span>`
-                  : l.subcanal === 'tiendanube'
-                  ? `<span class="badge-info b" style="font-size:10px">Tienda Nube</span>`
-                  : `<span style="font-size:11px;color:var(--ink-muted)">—</span>`;
-                return `
-                <tr>
-                  <td style="font-size:11px;color:var(--ink-muted)">${fdDate(l.created_at)}</td>
-                  <td style="font-weight:600">${esc(l.modelo || '—')}${l.variante ? `<br><span style="font-size:11px;color:var(--ink-muted)">${esc(l.variante)}</span>` : ''}</td>
-                  <td>${carrierBadge}</td>
-                  <td><span class="badge-info b" style="font-size:10px">${esc(l.etapa || 'general')}</span></td>
-                  <td style="font-size:12px;color:var(--ink-muted)">${esc(l.sector || '—')}</td>
-                  <td style="text-align:center;font-weight:700">${l.unidades || 0}</td>
-                  <td style="text-align:center;color:${(l.unidades_falla || 0) > 0 ? 'var(--red)' : 'var(--ink-muted)'}">${l.unidades_falla || 0}</td>
-                  ${!isPrivate ? `<td style="font-size:12px;color:var(--ink-muted)">${esc(l.usuario_nombre || '—')}</td>` : ''}
-                  <td>${ownerBtns('prod_log', l.id)}</td>
-                </tr>`;
-              }).join('')}
-            </tbody>
-          </table>
+    </div>`}
+
+    <!-- Registros recientes (colapsable) -->
+    <div class="card" style="overflow:hidden">
+      <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'"
+        style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:none;border:none;cursor:pointer;font-family:inherit">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted)">REGISTROS RECIENTES</span>
+          <span style="font-size:11px;font-weight:700;padding:2px 8px;background:var(--paper-dim);border-radius:20px;color:var(--ink-muted)">${recentLogs.length}</span>
         </div>
-      ` : '<div style="color:var(--ink-muted);font-size:13px;padding:16px 0">Sin registros de producción aún.</div>'}
+        <span style="font-size:16px;color:var(--ink-muted)">▾</span>
+      </button>
+      <div style="display:none;padding:0 20px 16px;overflow-x:auto">
+        ${recentLogs.length ? `
+        <table class="dt">
+          <thead><tr><th>Fecha</th><th style="font-family:monospace">SKU</th><th>Modelo</th><th>Color</th><th>Canal</th><th style="text-align:center">Uds.</th><th>Operario</th><th></th></tr></thead>
+          <tbody>
+            ${recentLogs.map(l=>{
+              const cBadge=`<span style="font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700;color:${CCOLOR[l.subcanal]||'var(--ink-muted)'};background:color-mix(in srgb,${CCOLOR[l.subcanal]||'var(--border)'} 12%,transparent)">${CLABEL[l.subcanal]||l.subcanal||'—'}</span>`;
+              return `<tr>
+                <td style="font-size:11px;color:var(--ink-muted)">${fdDate(l.created_at)}</td>
+                <td style="font-family:monospace;font-size:11px;font-weight:700;color:var(--blue)">${esc(l.sku||'—')}</td>
+                <td style="font-weight:600">${esc(l.modelo||'—')}</td>
+                <td style="font-size:12px">${esc(l.variante||'—')}</td>
+                <td>${cBadge}</td>
+                <td style="text-align:center;font-weight:700">${l.unidades||0}</td>
+                <td style="font-size:12px;color:var(--ink-muted)">${esc(l.usuario_nombre||'—')}</td>
+                <td>${ownerBtns('prod_log',l.id)}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>` : '<div style="font-size:13px;color:var(--ink-muted);padding:8px 0">Sin registros aún.</div>'}
+      </div>
     </div>
   `;
 }
@@ -2685,7 +3143,7 @@ const ROLE_SECTOR = { cnc:'CNC', melamina:'Melamina', pino:'Pino', embalaje:'Emb
 // Catálogo cacheado para el modal de producción
 let _prodCatalog = [];
 
-async function openRegisterProd() {
+async function openRegisterProd(presetCarrier) {
   const today = new Date().toISOString().split('T')[0];
   const sel = $('mp-model-sel');
   if (sel) sel.value = '';
@@ -2693,25 +3151,26 @@ async function openRegisterProd() {
   if (info) { info.style.display = 'none'; info.innerHTML = ''; }
   $('mp-qty').value = '';
   $('mp-date').value = today;
-  $('mp-notes').value = '';
-  $('mp-waste').value = '0';
-  $('mp-waste-notes-wrap').style.display = 'none';
-  $('mp-waste-notes').value = '';
-  const etEl = $('mp-etapa'); if (etEl) etEl.value = 'general';
-
-  // Auto-seleccionar sector según rol del usuario
-  const secEl = $('mp-sector');
-  if (secEl) secEl.value = ROLE_SECTOR[cu.role] || 'General';
+  const notasEl = $('mp-notes'); if (notasEl) notasEl.value = '';
 
   // Reset scan input
   const scanEl = $('mp-scan-input');
   if (scanEl) { scanEl.value = ''; scanEl.style.borderColor = ''; }
 
-  // Reset carrier
+  // Reset/preset carrier
   document.querySelectorAll('input[name="prod-carrier"]').forEach(r => r.checked = false);
-  updateProdCarrierStyles(null);
+  if (presetCarrier) {
+    const radioEl = document.querySelector(`input[name="prod-carrier"][value="${presetCarrier}"]`);
+    if (radioEl) radioEl.checked = true;
+  }
+  updateProdCarrierStyles(presetCarrier || null);
   const errEl = $('prod-carrier-error');
   if (errEl) errEl.style.display = 'none';
+  // Reset color
+  document.querySelectorAll('input[name="prod-color"]').forEach(r => r.checked = false);
+  onProdColorChange();
+  const colorErrEl = $('prod-color-error');
+  if (colorErrEl) colorErrEl.style.display = 'none';
   const prodBtn = document.querySelector('#m-prod .btn.g');
   if (prodBtn) unlockBtn(prodBtn, '✓ Registrar');
 
@@ -2732,11 +3191,27 @@ function onProdCarrierChange() {
   if (errEl) errEl.style.display = 'none';
 }
 
+function onProdColorChange() {
+  const val = document.querySelector('input[name="prod-color"]:checked')?.value;
+  const lblB = $('prod-lbl-blanco'), lblN = $('prod-lbl-negro');
+  if (lblB) {
+    lblB.style.borderColor = val === 'Blanco' ? '#555' : 'var(--border)';
+    lblB.style.background  = val === 'Blanco' ? 'color-mix(in srgb,#555 8%,transparent)' : '';
+  }
+  if (lblN) {
+    lblN.style.borderColor = val === 'Negro' ? '#111' : 'var(--border)';
+    lblN.style.background  = val === 'Negro' ? 'color-mix(in srgb,#111 8%,transparent)' : '';
+  }
+  const errEl = $('prod-color-error');
+  if (errEl) errEl.style.display = 'none';
+}
+
 function updateProdCarrierStyles(val) {
   const map = {
-    colecta:    { el: $('prod-lbl-colecta'),    color: 'var(--blue)'  },
-    flex:       { el: $('prod-lbl-flex'),        color: 'var(--green)' },
-    tiendanube: { el: $('prod-lbl-tiendanube'), color: 'var(--blue)'  }
+    colecta:      { el: $('prod-lbl-colecta'),      color: 'var(--blue)'  },
+    flex:         { el: $('prod-lbl-flex'),          color: 'var(--green)' },
+    tiendanube:   { el: $('prod-lbl-tiendanube'),   color: 'var(--blue)'  },
+    distribuidor: { el: $('prod-lbl-distribuidor'), color: 'var(--amber)' }
   };
   for (const [k, { el, color }] of Object.entries(map)) {
     if (!el) continue;
@@ -2790,9 +3265,17 @@ async function loadProductCatalogForProd() {
         return `<option value="${p.id}">${esc(p.sku)} — ${esc(nombre)}</option>`;
       }).join('');
   } else {
-    // Fallback: unique models from prod_logs as plain options
-    const { data: logModels } = await sb.from('prod_logs').select('modelo').order('modelo');
-    const unique = [...new Set((logModels || []).map(l => l.modelo).filter(Boolean))];
+    // Fallback: unique models from prod_logs + recent orders
+    const [logRes, ordRes] = await Promise.all([
+      sb.from('prod_logs').select('modelo').order('modelo'),
+      sb.from('orders').select('productos').neq('canal','reporte').not('estado','in','("cancelado","entregado","despachado")').limit(200)
+    ]);
+    const fromLogs = (logRes.data || []).map(l => l.modelo).filter(Boolean);
+    const fromOrders = [];
+    for (const o of (ordRes.data || [])) {
+      for (const p of (o.productos || [])) { if (p.nombre) fromOrders.push(p.nombre); }
+    }
+    const unique = [...new Set([...fromLogs, ...fromOrders])].sort();
     sel.innerHTML = '<option value="">— Seleccioná el producto —</option>' +
       unique.map(m => `<option value="__log__${esc(m)}">${esc(m)}</option>`).join('');
     _prodCatalog = [];
@@ -2832,6 +3315,15 @@ async function submitProd() {
     return;
   }
 
+  // Color es obligatorio
+  const colorSel = document.querySelector('input[name="prod-color"]:checked')?.value;
+  if (!colorSel) {
+    const errEl = $('prod-color-error');
+    if (errEl) errEl.style.display = '';
+    showToast('Seleccioná el color: Blanco o Negro', 'error');
+    return;
+  }
+
   // Resolve modelo/variante/sku from catalog selection
   let modelo, variante, sku;
   if (selVal.startsWith('__log__')) {
@@ -2845,31 +3337,239 @@ async function submitProd() {
     sku = p.sku;
   }
 
+  // El color seleccionado siempre sobreescribe la variante del catálogo
+  variante = colorSel;  // "Blanco" o "Negro"
+
   const fecha = $('mp-date').value;
-  const sector = $('mp-sector').value;
-  const etapa = $('mp-etapa')?.value || 'general';
-  const notas = $('mp-notes').value.trim();
-  const unidades_falla = parseInt($('mp-waste').value) || 0;
-  const falla_descripcion = $('mp-waste-notes').value.trim();
-  const orden_id = $('mp-ord').value || null;
+  const sector = ROLE_SECTOR[cu.role] || 'General';
+  const notas = $('mp-notes')?.value.trim() || null;
+
+  // Advertir si se registran más unidades que el faltante actual (sobreproducción)
+  const filaActual = _currentCarrierFilas?.find(f => f.sku === sku || f.modelo === modelo);
+  if (filaActual && unidades > filaActual.faltante && filaActual.faltante > 0) {
+    showToast(`⚠ Estás registrando ${unidades} pero el faltante es ${filaActual.faltante}. Se guarda como excedente.`, 'info', 4000);
+  }
 
   const btn = document.querySelector('#m-prod .btn.g');
   lockBtn(btn);
 
   const { error } = await sb.from('prod_logs').insert({
-    modelo, variante, sku, etapa, unidades, fecha, sector, subcanal,
-    notas: notas || null, unidades_falla,
-    falla_descripcion: falla_descripcion || null,
-    orden_id, usuario_id: cu.id, usuario_nombre: cu.name
+    modelo, variante, sku, etapa: 'general', unidades, fecha, sector, subcanal,
+    notas, unidades_falla: 0,
+    falla_descripcion: null,
+    orden_id: null, usuario_id: cu.id, usuario_nombre: cu.name
   });
 
   if (error) { showToast('Error: ' + error.message, 'error'); unlockBtn(btn, '✓ Registrar'); return; }
   unlockBtn(btn, '✓ Registrar');
-  const carrierLabel = subcanal === 'colecta' ? 'Colecta' : subcanal === 'flex' ? 'Flex' : 'Tienda Nube';
+  const carrierLabel = subcanal === 'colecta' ? 'Colecta' : subcanal === 'flex' ? 'Flex' : subcanal === 'distribuidor' ? 'Distribuidores' : 'Tienda Nube';
   await logActivity('produccion_registrada', `Producción: ${sku || modelo}${variante ? ' (' + variante + ')' : ''} ×${unidades} — ${sector} — ${carrierLabel}`, orden_id);
   closeM('m-prod');
   showToast(`✓ ${unidades} ${esc(sku || modelo)} (${carrierLabel}) registradas`);
-  renderProduccion();
+  // Refresh whichever view is currently active
+  if (curPage === 'carrier') renderCarrierPage();
+  else if (curPage === 'dashboard') renderDash();
+  else renderProduccion();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HISTÓRICO DE PRODUCCIÓN
+   ═══════════════════════════════════════════════════════════ */
+let _histState = { year: new Date().getFullYear(), month: new Date().getMonth(), selDay: null, filterCarrier: '', filterSku: '', dateFrom: '', dateTo: '' };
+
+async function renderHistorico() {
+  if (!['owner','admin'].includes(cu.role)) {
+    $('historico-body').innerHTML = '<div style="padding:40px;text-align:center;color:var(--ink-muted)">Acceso restringido.</div>';
+    return;
+  }
+  showLoading('historico-body');
+  const s = _histState;
+
+  // Rango del mes visible
+  const firstDay = new Date(s.year, s.month, 1);
+  const lastDay  = new Date(s.year, s.month + 1, 0);
+  const fromISO  = firstDay.toISOString().split('T')[0];
+  const toISO    = lastDay.toISOString().split('T')[0];
+
+  // Traer prod_logs del mes + filtros adicionales si hay
+  let q = sb.from('prod_logs')
+    .select('id,modelo,sku,variante,unidades,subcanal,sector,usuario_nombre,fecha,created_at')
+    .gte('fecha', s.dateFrom || fromISO)
+    .lte('fecha', s.dateTo   || toISO)
+    .order('fecha', { ascending: false });
+  if (s.filterCarrier) q = q.eq('subcanal', s.filterCarrier);
+  if (s.filterSku)     q = q.ilike('sku', `%${s.filterSku}%`);
+
+  const { data: logs } = await q;
+  const allLogs = logs || [];
+
+  // Agrupar por fecha para el calendario
+  const byDay = {};
+  for (const l of allLogs) {
+    const d = l.fecha || l.created_at?.split('T')[0];
+    if (!d) continue;
+    if (!byDay[d]) byDay[d] = 0;
+    byDay[d] += l.unidades || 0;
+  }
+
+  // Construir calendario
+  const DIAS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const startDow = firstDay.getDay(); // día de semana del 1ro
+  const daysInMonth = lastDay.getDate();
+
+  let calCells = '';
+  for (let i = 0; i < startDow; i++) calCells += '<div></div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const iso = `${s.year}-${String(s.month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const uds = byDay[iso] || 0;
+    const isToday = iso === new Date().toISOString().split('T')[0];
+    const isSel   = iso === s.selDay;
+    calCells += `<div onclick="_histSelectDay('${iso}')" style="
+      padding:8px 4px;border-radius:8px;text-align:center;cursor:${uds?'pointer':'default'};
+      background:${isSel?'#0A0A0A':uds?'color-mix(in srgb,var(--green) 15%,transparent)':'transparent'};
+      border:2px solid ${isSel?'#0A0A0A':isToday?'var(--blue)':'transparent'};
+      transition:background .15s">
+      <div style="font-size:13px;font-weight:${uds?700:400};color:${isSel?'#fff':uds?'var(--green)':'var(--ink-muted)'}">${d}</div>
+      ${uds?`<div style="font-size:9px;font-weight:700;color:${isSel?'#aaffaa':'var(--green)'}">${uds}u</div>`:''}
+    </div>`;
+  }
+
+  // Detalle del día seleccionado
+  let dayDetail = '';
+  if (s.selDay) {
+    const dayLogs = allLogs.filter(l => (l.fecha || l.created_at?.split('T')[0]) === s.selDay);
+    if (dayLogs.length) {
+      const carrierLabel = { colecta:'Colecta', flex:'Flex', tiendanube:'Tienda Nube', distribuidor:'Distribuidores' };
+      dayDetail = `
+        <div class="card" style="padding:20px;margin-top:20px">
+          <div style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:14px">DETALLE — ${s.selDay}</div>
+          <table class="dt">
+            <thead><tr><th>SKU</th><th>Modelo</th><th>Canal</th><th>Color</th><th style="text-align:center">Uds.</th><th>Operario</th></tr></thead>
+            <tbody>
+              ${dayLogs.map(l => `<tr>
+                <td style="font-family:monospace;font-size:11px;font-weight:700;color:var(--blue)">${esc(l.sku||'—')}</td>
+                <td style="font-weight:600">${esc(l.modelo||'—')}</td>
+                <td><span style="font-size:11px;padding:2px 8px;border-radius:12px;background:var(--paper-dim)">${esc(carrierLabel[l.subcanal]||l.subcanal||'—')}</span></td>
+                <td style="font-size:12px">${esc(l.variante||'—')}</td>
+                <td style="text-align:center;font-family:monospace;font-weight:700;color:var(--green)">${l.unidades}</td>
+                <td style="font-size:12px;color:var(--ink-muted)">${esc(l.usuario_nombre||'—')}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    } else {
+      dayDetail = `<div style="margin-top:16px;padding:20px;text-align:center;color:var(--ink-muted);font-size:13px">Sin registros para ${s.selDay}.</div>`;
+    }
+  }
+
+  // Totales del período
+  const totalUds     = allLogs.reduce((a,l) => a + (l.unidades||0), 0);
+  const totalBlancos = allLogs.filter(l => (l.variante||'').toLowerCase().includes('blanc')).reduce((a,l)=>a+(l.unidades||0),0);
+  const totalNegros  = allLogs.filter(l => (l.variante||'').toLowerCase().includes('negr')).reduce((a,l)=>a+(l.unidades||0),0);
+  const diasActivos  = Object.keys(byDay).length;
+
+  $('historico-body').innerHTML = `
+    <!-- Filtros -->
+    <div class="card" style="padding:16px 20px;margin-bottom:20px;display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+      <div class="fi" style="margin:0;min-width:120px">
+        <label style="font-size:11px">Canal</label>
+        <select class="fi-inp" style="height:36px;font-size:12px" onchange="_histFilter('filterCarrier',this.value)">
+          <option value="">Todos</option>
+          <option value="colecta" ${s.filterCarrier==='colecta'?'selected':''}>Colecta</option>
+          <option value="flex" ${s.filterCarrier==='flex'?'selected':''}>Flex</option>
+          <option value="tiendanube" ${s.filterCarrier==='tiendanube'?'selected':''}>Tienda Nube</option>
+          <option value="distribuidor" ${s.filterCarrier==='distribuidor'?'selected':''}>Distribuidores</option>
+        </select>
+      </div>
+      <div class="fi" style="margin:0;min-width:120px">
+        <label style="font-size:11px">SKU / Modelo</label>
+        <input class="fi-inp" style="height:36px;font-size:12px" type="text" placeholder="Buscar..." value="${esc(s.filterSku)}" oninput="_histFilter('filterSku',this.value)">
+      </div>
+      <div class="fi" style="margin:0">
+        <label style="font-size:11px">Desde</label>
+        <input class="fi-inp" style="height:36px;font-size:12px" type="date" value="${s.dateFrom}" onchange="_histFilter('dateFrom',this.value)">
+      </div>
+      <div class="fi" style="margin:0">
+        <label style="font-size:11px">Hasta</label>
+        <input class="fi-inp" style="height:36px;font-size:12px" type="date" value="${s.dateTo}" onchange="_histFilter('dateTo',this.value)">
+      </div>
+      <button class="btn-ghost sm" onclick="exportHistoricoXlsx()" style="height:36px">⬇ Exportar Excel</button>
+    </div>
+
+    <!-- KPIs del período -->
+    <div class="sg" style="margin-bottom:20px">
+      <div class="sc g"><div class="sc-l">Total producido</div><div class="sc-v">${totalUds}</div></div>
+      <div class="sc"><div class="sc-l">⬜ Blancos</div><div class="sc-v">${totalBlancos}</div></div>
+      <div class="sc"><div class="sc-l">⬛ Negros</div><div class="sc-v">${totalNegros}</div></div>
+      <div class="sc b"><div class="sc-l">Días activos</div><div class="sc-v">${diasActivos}</div></div>
+    </div>
+
+    <!-- Calendario -->
+    <div class="card" style="padding:20px;margin-bottom:0">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <button class="btn-ghost sm" onclick="_histNavMonth(-1)">← Anterior</button>
+        <span style="font-weight:800;font-size:16px">${MESES[s.month]} ${s.year}</span>
+        <button class="btn-ghost sm" onclick="_histNavMonth(1)">Siguiente →</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:8px">
+        ${DIAS.map(d=>`<div style="text-align:center;font-size:10px;font-weight:700;color:var(--ink-muted);padding:4px">${d}</div>`).join('')}
+        ${calCells}
+      </div>
+    </div>
+    ${dayDetail}
+  `;
+}
+
+function _histNavMonth(dir) {
+  _histState.month += dir;
+  if (_histState.month < 0)  { _histState.month = 11; _histState.year--; }
+  if (_histState.month > 11) { _histState.month = 0;  _histState.year++; }
+  _histState.selDay = null;
+  renderHistorico();
+}
+
+function _histSelectDay(iso) {
+  _histState.selDay = _histState.selDay === iso ? null : iso;
+  renderHistorico();
+}
+
+function _histFilter(key, val) {
+  _histState[key] = val;
+  _histState.selDay = null;
+  clearTimeout(_histState._debounce);
+  _histState._debounce = setTimeout(renderHistorico, 350);
+}
+
+async function exportHistoricoXlsx() {
+  if (typeof XLSX === 'undefined') { showToast('Librería Excel no cargada', 'error'); return; }
+  const s = _histState;
+  const today = new Date().toISOString().split('T')[0];
+  let q = sb.from('prod_logs')
+    .select('fecha,modelo,sku,variante,unidades,subcanal,sector,usuario_nombre,created_at')
+    .gte('fecha', s.dateFrom || '2020-01-01')
+    .lte('fecha', s.dateTo || today)
+    .order('fecha', { ascending: false });
+  if (s.filterCarrier) q = q.eq('subcanal', s.filterCarrier);
+  if (s.filterSku)     q = q.ilike('sku', `%${s.filterSku}%`);
+  const { data } = await q;
+  if (!data?.length) { showToast('Sin datos para exportar', 'error'); return; }
+
+  const rows = data.map(l => ({
+    Fecha: l.fecha || l.created_at?.split('T')[0],
+    SKU: l.sku || '',
+    Modelo: l.modelo || '',
+    Color: l.variante || '',
+    Canal: l.subcanal || '',
+    Sector: l.sector || '',
+    Unidades: l.unidades || 0,
+    Operario: l.usuario_nombre || ''
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Histórico');
+  XLSX.writeFile(wb, `historico_produccion_${today}.xlsx`);
+  showToast('✓ Excel exportado');
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -2944,6 +3644,15 @@ async function renderConfig() {
   const inactivos = catalog.filter(p => !p.activo).length;
 
   $('config-body').innerHTML = `
+    <!-- QR Panel -->
+    <div class="card" style="padding:20px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:4px">QRS DE PRODUCCIÓN</div>
+        <div style="font-size:13px;color:var(--ink-soft)">Generá e imprimí los QRs para escanear en producción (uno por SKU)</div>
+      </div>
+      <button class="btn" onclick="openQrPanel()" style="white-space:nowrap">🖨 Ver e imprimir QRs</button>
+    </div>
+
     <div class="card" style="padding:20px;margin-bottom:20px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
         <div style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted)">USUARIOS</div>
@@ -3350,9 +4059,10 @@ function setupRealtime() {
   sb.channel('macario-lite')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
       invalidateCache('orders');
-      if (curPage === 'ventas') renderVentas();
+      if (curPage === 'ventas')    renderVentas();
       if (curPage === 'dashboard') renderDash();
-      if (curPage === 'reporte') renderReporte();
+      if (curPage === 'carrier')   renderCarrierPage();
+      if (curPage === 'produccion') renderProduccion();
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'stock' }, () => {
       invalidateCache('stock');
@@ -3363,7 +4073,8 @@ function setupRealtime() {
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'prod_logs' }, () => {
       if (curPage === 'produccion') renderProduccion();
-      if (curPage === 'reporte') renderReporte();
+      if (curPage === 'carrier')   renderCarrierPage();
+      if (curPage === 'historico') renderHistorico();
     })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
       const n = payload.new;

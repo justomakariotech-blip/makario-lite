@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Macario Lite · Sistema de Gestión</title>
 <meta name="theme-color" content="#0A0A0A">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -186,6 +186,12 @@
     </div>
 
     <!-- CONFIG -->
+    <!-- HISTÓRICO -->
+    <div class="pg" id="pg-historico">
+      <div class="pg-hd"><div><div class="pg-ti">Histórico de Producción</div><div class="pg-su">Registros y estadísticas por período</div></div></div>
+      <div id="historico-body"></div>
+    </div>
+
     <div class="pg" id="pg-config">
       <div class="pg-hd"><div><div class="pg-ti">Configuración</div><div class="pg-su">Usuarios e integraciones</div></div></div>
       <div id="config-body"></div>
@@ -205,7 +211,7 @@
 <!-- New Order -->
 <div class="modal-back" id="m-neworder">
   <div class="modal lg">
-    <div class="modal-hd"><span class="modal-ti">Nuevo Pedido</span><button class="modal-cl" onclick="closeM('m-neworder')">×</button></div>
+    <div class="modal-hd"><span class="modal-ti">Nuevo Pedido</span><button class="modal-cl" aria-label="Cerrar" onclick="closeM('m-neworder')">×</button></div>
     <div class="modal-bd">
       <div class="fi-row">
         <div class="fi"><label>Canal de venta</label>
@@ -238,7 +244,7 @@
 <!-- Status Change -->
 <div class="modal-back" id="m-status">
   <div class="modal">
-    <div class="modal-hd"><span class="modal-ti" id="ms-ti">Cambiar Estado</span><button class="modal-cl" onclick="closeM('m-status')">×</button></div>
+    <div class="modal-hd"><span class="modal-ti" id="ms-ti">Cambiar Estado</span><button class="modal-cl" aria-label="Cerrar" onclick="closeM('m-status')">×</button></div>
     <div class="modal-bd"><div id="ms-body"></div></div>
     <div class="modal-ft"><button class="btn-ghost" onclick="closeM('m-status')">Cancelar</button></div>
   </div>
@@ -247,7 +253,7 @@
 <!-- Cancel Order -->
 <div class="modal-back" id="m-cancel">
   <div class="modal">
-    <div class="modal-hd"><span class="modal-ti">Cancelar Pedido</span><button class="modal-cl" onclick="closeM('m-cancel')">×</button></div>
+    <div class="modal-hd"><span class="modal-ti">Cancelar Pedido</span><button class="modal-cl" aria-label="Cerrar" onclick="closeM('m-cancel')">×</button></div>
     <div class="modal-bd">
       <div class="badge-info r" id="mc-info"></div>
       <div class="fi"><label>Motivo de cancelación (requerido)</label><textarea class="fi-inp" id="mc-reason" placeholder="Indicar el motivo..."></textarea></div>
@@ -259,9 +265,9 @@
 <!-- Update Stock (materias primas) -->
 <div class="modal-back" id="m-stock-upd">
   <div class="modal">
-    <div class="modal-hd"><span class="modal-ti" id="su-ti">Actualizar Stock</span><button class="modal-cl" onclick="closeM('m-stock-upd')">×</button></div>
+    <div class="modal-hd"><span class="modal-ti" id="su-ti">Actualizar Stock</span><button class="modal-cl" aria-label="Cerrar" onclick="closeM('m-stock-upd')">×</button></div>
     <div class="modal-bd">
-      <div class="fi"><label>Nueva cantidad</label><input class="fi-inp" type="number" id="su-qty" min="0" placeholder="0"></div>
+      <div class="fi"><label>Nueva cantidad</label><input class="fi-inp" type="number" inputmode="numeric" id="su-qty" min="0" placeholder="0"></div>
       <div id="su-hist" style="margin-top:16px"></div>
     </div>
     <div class="modal-ft"><button class="btn-ghost" onclick="closeM('m-stock-upd')">Cancelar</button><button class="btn" onclick="confirmStockUpd()">Actualizar</button></div>
@@ -271,7 +277,7 @@
 <!-- Add Raw Material -->
 <div class="modal-back" id="m-stock-add">
   <div class="modal">
-    <div class="modal-hd"><span class="modal-ti">Agregar Materia Prima</span><button class="modal-cl" onclick="closeM('m-stock-add')">×</button></div>
+    <div class="modal-hd"><span class="modal-ti">Agregar Materia Prima</span><button class="modal-cl" aria-label="Cerrar" onclick="closeM('m-stock-add')">×</button></div>
     <div class="modal-bd">
       <div class="fi"><label>Nombre del insumo</label><input class="fi-inp" type="text" id="sa-nm" placeholder="ej: Placa MDF 18mm"></div>
       <div class="fi-row">
@@ -279,10 +285,10 @@
         <div class="fi"><label>Unidad</label><input class="fi-inp" type="text" id="sa-unit" placeholder="unidades / metros / kg"></div>
       </div>
       <div class="fi-row">
-        <div class="fi"><label>Cantidad actual</label><input class="fi-inp" type="number" id="sa-qty" min="0" placeholder="0"></div>
-        <div class="fi"><label>Mín. recomendado</label><input class="fi-inp" type="number" id="sa-warn" min="0" placeholder="0"></div>
+        <div class="fi"><label>Cantidad actual</label><input class="fi-inp" type="number" inputmode="numeric" id="sa-qty" min="0" placeholder="0"></div>
+        <div class="fi"><label>Mín. recomendado</label><input class="fi-inp" type="number" inputmode="numeric" id="sa-warn" min="0" placeholder="0"></div>
       </div>
-      <div class="fi"><label>Cantidad crítica</label><input class="fi-inp" type="number" id="sa-crit" min="0" placeholder="0"></div>
+      <div class="fi"><label>Cantidad crítica</label><input class="fi-inp" type="number" inputmode="numeric" id="sa-crit" min="0" placeholder="0"></div>
     </div>
     <div class="modal-ft"><button class="btn-ghost" onclick="closeM('m-stock-add')">Cancelar</button><button class="btn" onclick="confirmAddStock()">Agregar</button></div>
   </div>
@@ -291,7 +297,7 @@
 <!-- Add Finished Product -->
 <div class="modal-back" id="m-product-add">
   <div class="modal">
-    <div class="modal-hd"><span class="modal-ti">Agregar Producto Terminado</span><button class="modal-cl" onclick="closeM('m-product-add')">×</button></div>
+    <div class="modal-hd"><span class="modal-ti">Agregar Producto Terminado</span><button class="modal-cl" aria-label="Cerrar" onclick="closeM('m-product-add')">×</button></div>
     <div class="modal-bd">
       <div class="fi"><label>Nombre del producto</label><input class="fi-inp" type="text" id="pa-nm" placeholder="ej: Mesa Ratona MR-01"></div>
       <div class="fi-row">
@@ -300,10 +306,10 @@
       </div>
       <div class="fi"><label>SKU / Código</label><input class="fi-inp" type="text" id="pa-sku" placeholder="ej: MR-01"></div>
       <div class="fi-row">
-        <div class="fi"><label>Stock actual</label><input class="fi-inp" type="number" id="pa-qty" min="0" placeholder="0"></div>
-        <div class="fi"><label>Stock mínimo (aviso)</label><input class="fi-inp" type="number" id="pa-min" min="0" placeholder="0"></div>
+        <div class="fi"><label>Stock actual</label><input class="fi-inp" type="number" inputmode="numeric" id="pa-qty" min="0" placeholder="0"></div>
+        <div class="fi"><label>Stock mínimo (aviso)</label><input class="fi-inp" type="number" inputmode="numeric" id="pa-min" min="0" placeholder="0"></div>
       </div>
-      <div class="fi"><label>Stock crítico (semáforo rojo)</label><input class="fi-inp" type="number" id="pa-mincrit" min="0" placeholder="Opcional"></div>
+      <div class="fi"><label>Stock crítico (semáforo rojo)</label><input class="fi-inp" type="number" inputmode="numeric" id="pa-mincrit" min="0" placeholder="Opcional"></div>
       <div class="fi"><label>Categoría</label><input class="fi-inp" type="text" id="pa-cat" placeholder="ej: Mesas / Sillas / Escritorios"></div>
       <div class="fi"><label>Notas</label><input class="fi-inp" type="text" id="pa-notes" placeholder="Opcional"></div>
     </div>
@@ -314,9 +320,9 @@
 <!-- Update Finished Product Stock -->
 <div class="modal-back" id="m-product-upd">
   <div class="modal">
-    <div class="modal-hd"><span class="modal-ti" id="pu-ti">Actualizar Stock de Producto</span><button class="modal-cl" onclick="closeM('m-product-upd')">×</button></div>
+    <div class="modal-hd"><span class="modal-ti" id="pu-ti">Actualizar Stock de Producto</span><button class="modal-cl" aria-label="Cerrar" onclick="closeM('m-product-upd')">×</button></div>
     <div class="modal-bd">
-      <div class="fi"><label>Nueva cantidad en stock</label><input class="fi-inp" type="number" id="pu-qty" min="0" placeholder="0"></div>
+      <div class="fi"><label>Nueva cantidad en stock</label><input class="fi-inp" type="number" inputmode="numeric" id="pu-qty" min="0" placeholder="0"></div>
     </div>
     <div class="modal-ft"><button class="btn-ghost" onclick="closeM('m-product-upd')">Cancelar</button><button class="btn" onclick="confirmProductUpd()">Actualizar</button></div>
   </div>
@@ -325,12 +331,20 @@
 <!-- Register Production -->
 <div class="modal-back" id="m-prod">
   <div class="modal">
-    <div class="modal-hd"><span class="modal-ti">Registrar Producción</span><button class="modal-cl" onclick="closeM('m-prod')">×</button></div>
+    <div class="modal-hd"><span class="modal-ti">Registrar Producción</span><button class="modal-cl" aria-label="Cerrar" onclick="closeM('m-prod')">×</button></div>
     <div class="modal-bd">
       <!-- Scanner field -->
       <div class="fi" style="margin-bottom:8px">
-        <label style="font-weight:700;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-muted)">▣ Escanear con pistola QR / código de barras</label>
-        <input class="fi-inp" type="text" id="mp-scan-input" placeholder="Apuntá la pistola acá y escaneá el QR del producto..." autocomplete="off" autocorrect="off" spellcheck="false" onkeydown="onProdScanKey(event)" style="font-family:var(--mono);font-size:13px;background:color-mix(in srgb,var(--blue) 4%,transparent);border-color:var(--blue);border-style:dashed">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <label style="font-weight:700;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:0">▣ Escanear QR del producto</label>
+          <button type="button" onclick="openProdCamScanner()" style="font-size:11px;font-weight:700;padding:4px 12px;border:1px solid var(--blue);background:color-mix(in srgb,var(--blue) 8%,transparent);color:var(--blue);border-radius:6px;cursor:pointer;font-family:inherit">📷 Cámara</button>
+        </div>
+        <input class="fi-inp" type="text" id="mp-scan-input" placeholder="Pistola / escáner HID → Enter" autocomplete="off" autocorrect="off" spellcheck="false" onkeydown="onProdScanKey(event)" style="font-family:var(--mono);font-size:13px;background:color-mix(in srgb,var(--blue) 4%,transparent);border-color:var(--blue);border-style:dashed">
+        <!-- cámara inline -->
+        <div id="mp-cam-wrap" style="display:none;margin-top:8px;border-radius:8px;overflow:hidden;position:relative">
+          <div id="mp-cam-reader" style="width:100%"></div>
+          <button type="button" onclick="closeProdCamScanner()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;line-height:1">×</button>
+        </div>
         <div style="font-size:11px;color:var(--ink-muted);margin-top:4px">O buscá el producto en el selector de abajo.</div>
       </div>
       <div class="fi">
@@ -367,49 +381,55 @@
               <span style="display:block;font-size:10px;font-weight:400;color:var(--ink-muted)">Web propia</span>
             </span>
           </label>
+          <label id="prod-lbl-distribuidor" style="flex:1;min-width:120px;display:flex;align-items:center;gap:8px;padding:10px 12px;border:2px solid var(--border);border-radius:8px;cursor:pointer;transition:border-color .15s,background .15s;font-size:13px;font-weight:600">
+            <input type="radio" name="prod-carrier" value="distribuidor" onchange="onProdCarrierChange()" style="accent-color:var(--amber);width:15px;height:15px">
+            <span>
+              <span style="display:block;font-size:13px">Distribuidores</span>
+              <span style="display:block;font-size:10px;font-weight:400;color:var(--ink-muted)">Mayoristas</span>
+            </span>
+          </label>
         </div>
         <div id="prod-carrier-error" style="display:none;color:var(--red);font-size:12px;margin-top:6px">Seleccioná el destino antes de registrar</div>
       </div>
 
+      <!-- COLOR -->
+      <div class="fi" style="margin-bottom:4px">
+        <label style="font-weight:700;font-size:13px">Color <span style="color:var(--red)">*</span></label>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <label id="prod-lbl-blanco" style="flex:1;display:flex;align-items:center;gap:10px;padding:14px 16px;border:2px solid var(--border);border-radius:8px;cursor:pointer;transition:border-color .15s,background .15s;font-size:14px;font-weight:700">
+            <input type="radio" name="prod-color" value="Blanco" onchange="onProdColorChange()" style="accent-color:#555;width:16px;height:16px">
+            <span style="display:flex;align-items:center;gap:8px">
+              <span style="width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid #ccc;display:inline-block;flex-shrink:0"></span>
+              Blanco
+            </span>
+          </label>
+          <label id="prod-lbl-negro" style="flex:1;display:flex;align-items:center;gap:10px;padding:14px 16px;border:2px solid var(--border);border-radius:8px;cursor:pointer;transition:border-color .15s,background .15s;font-size:14px;font-weight:700">
+            <input type="radio" name="prod-color" value="Negro" onchange="onProdColorChange()" style="accent-color:#111;width:16px;height:16px">
+            <span style="display:flex;align-items:center;gap:8px">
+              <span style="width:18px;height:18px;border-radius:50%;background:#111;border:2px solid #111;display:inline-block;flex-shrink:0"></span>
+              Negro
+            </span>
+          </label>
+        </div>
+        <div id="prod-color-error" style="display:none;color:var(--red);font-size:12px;margin-top:6px">Seleccioná el color antes de registrar</div>
+      </div>
+
       <div class="fi">
         <label>Cantidad producida</label>
-        <input class="fi-inp" type="number" id="mp-qty" min="1" placeholder="0" style="font-size:22px;font-weight:700;text-align:center;height:52px">
+        <input class="fi-inp" type="number" inputmode="numeric" id="mp-qty" min="1" placeholder="0" style="font-size:22px;font-weight:700;text-align:center;height:52px">
       </div>
-      <div class="fi-row">
-        <div class="fi"><label>Sector</label>
-          <select class="fi-inp" id="mp-sector">
-            <option value="CNC">CNC</option>
-            <option value="Melamina">Melamina</option>
-            <option value="Pino">Pino</option>
-            <option value="Embalaje">Embalaje</option>
-            <option value="Carpinteria">Carpintería</option>
-            <option value="General">General</option>
-          </select>
-        </div>
-        <div class="fi"><label>Fecha</label><input class="fi-inp" type="date" id="mp-date"></div>
+      <div class="fi">
+        <label>Fecha</label><input class="fi-inp" type="date" id="mp-date">
       </div>
-      <details style="margin-top:8px">
-        <summary style="font-size:12px;color:var(--ink-muted);cursor:pointer;user-select:none;padding:4px 0">Opciones adicionales (fallas, notas, etapa)</summary>
-        <div style="padding-top:12px;display:flex;flex-direction:column;gap:10px">
-          <div class="fi-row">
-            <div class="fi"><label>Unidades con falla</label><input class="fi-inp" type="number" id="mp-waste" min="0" placeholder="0" oninput="toggleWasteNotes(this)"></div>
-            <div class="fi"><label>Etapa</label>
-              <select class="fi-inp" id="mp-etapa">
-                <option value="general">General</option>
-                <option value="cnc">CNC</option>
-                <option value="melamina">Melamina</option>
-                <option value="pino">Pino</option>
-                <option value="embalaje">Embalaje</option>
-              </select>
-            </div>
-          </div>
-          <div class="fi" id="mp-waste-notes-wrap" style="display:none"><label>Descripción de la falla</label><input class="fi-inp" type="text" id="mp-waste-notes" placeholder="Describir el problema"></div>
-          <div class="fi"><label>Notas</label><input class="fi-inp" type="text" id="mp-notes" placeholder="Opcional"></div>
-          <div class="fi"><label>Pedido vinculado (opcional)</label>
-            <select class="fi-inp" id="mp-ord"><option value="">— Producción general —</option></select>
-          </div>
+      <div style="margin-top:8px">
+        <button type="button" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'"
+          style="background:none;border:none;font-family:inherit;font-size:12px;color:var(--ink-muted);cursor:pointer;padding:4px 0;text-decoration:underline">
+          + Agregar nota
+        </button>
+        <div style="display:none;margin-top:8px">
+          <textarea class="fi-inp" id="mp-notes" rows="2" placeholder="Observación del operario (opcional)" style="resize:none"></textarea>
         </div>
-      </details>
+      </div>
     </div>
     <div class="modal-ft"><button class="btn-ghost" onclick="closeM('m-prod')">Cancelar</button><button class="btn g" onclick="submitProd()">✓ Registrar</button></div>
   </div>
@@ -418,7 +438,7 @@
 <!-- Import ML Excel -->
 <div class="modal-back" id="m-excel-import">
   <div class="modal lg">
-    <div class="modal-hd"><span class="modal-ti">Importar Reporte de Ventas</span><button class="modal-cl" onclick="closeM('m-excel-import')">×</button></div>
+    <div class="modal-hd"><span class="modal-ti">Importar Reporte de Ventas</span><button class="modal-cl" aria-label="Cerrar" onclick="closeM('m-excel-import')">×</button></div>
     <div class="modal-bd">
       <div class="badge-info b" style="display:block;margin-bottom:20px">Subí el Excel exportado desde <strong>MercadoLibre</strong> o <strong>Tienda Nube</strong>. Los pedidos nuevos se crean automáticamente. Los ya existentes se omiten (sin duplicados).</div>
 
@@ -445,6 +465,13 @@
             <span>
               <span style="display:block;font-size:13px">Tienda Nube</span>
               <span style="display:block;font-size:11px;font-weight:400;color:var(--ink-muted)">Web propia</span>
+            </span>
+          </label>
+          <label id="import-lbl-distribuidor" style="flex:1;min-width:140px;display:flex;align-items:center;gap:10px;padding:13px 14px;border:2px solid var(--border);border-radius:10px;cursor:pointer;transition:border-color .15s,background .15s;font-size:13px;font-weight:600">
+            <input type="radio" name="import-carrier" value="distribuidor" onchange="onCarrierChange()" style="accent-color:var(--amber);width:16px;height:16px">
+            <span>
+              <span style="display:block;font-size:13px">Distribuidores</span>
+              <span style="display:block;font-size:11px;font-weight:400;color:var(--ink-muted)">Mayoristas / bulto</span>
             </span>
           </label>
         </div>
@@ -479,7 +506,7 @@
   <div class="modal" style="max-width:340px">
     <div class="modal-hd">
       <span class="modal-ti" id="qr-modal-title">QR del producto</span>
-      <button class="modal-cl" onclick="closeM('m-qr')">×</button>
+      <button class="modal-cl" aria-label="Cerrar" onclick="closeM('m-qr')">×</button>
     </div>
     <div class="modal-bd" style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:24px 20px">
       <div id="qr-canvas-wrap" style="padding:16px;background:#fff;border-radius:12px;border:1px solid var(--border)">
@@ -492,6 +519,7 @@
   </div>
 </div>
 
+<div id="toast-container" aria-live="polite" aria-atomic="false"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="app.js"></script>
