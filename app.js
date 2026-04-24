@@ -2201,175 +2201,109 @@ async function renderDash() {
     $('dash-body').innerHTML = '<div style="padding:40px;text-align:center;color:var(--ink-muted)">Acceso restringido.</div>';
     return;
   }
-  showLoading('dash-body');
   $('dts').textContent = fdLong(new Date());
+
+  // Inject CSS once — animaciones y estilos de cards
   if (!document.getElementById('dash-anim-style')) {
     const _s = document.createElement('style');
     _s.id = 'dash-anim-style';
-    _s.textContent = '@keyframes dash-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}';
+    _s.textContent = [
+      '@keyframes dash-fade-up{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}',
+      '@keyframes dash-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.65)}}',
+      '@keyframes dash-skel{0%{background-position:200% 0}100%{background-position:-200% 0}}',
+      '.dash-skel{background:linear-gradient(90deg,var(--paper-dim) 25%,var(--paper-off) 50%,var(--paper-dim) 75%);background-size:200% 100%;animation:dash-skel 1.5s ease infinite;border-radius:10px}',
+      '.dash-ch{background:var(--paper);border:1px solid var(--border);border-radius:14px;padding:26px 22px 22px;cursor:pointer;position:relative;overflow:hidden;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease;animation:dash-fade-up .38s ease both}',
+      '.dash-ch:hover{transform:translateY(-5px);box-shadow:0 18px 44px rgba(0,0,0,.09);border-color:var(--border-md)}',
+      '.dash-ch:active{transform:translateY(-2px)}',
+      '.dash-ch:hover .dash-ch-bg{opacity:1!important}',
+      '.dash-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}',
+      '@media(max-width:860px){.dash-grid{grid-template-columns:repeat(2,1fr)}}',
+      '@media(max-width:480px){.dash-grid{grid-template-columns:1fr}}',
+    ].join('');
     document.head.appendChild(_s);
   }
 
-  const today = new Date().toISOString().split('T')[0];
-  const [ordersRes, stockRes, prodRes, allProdLogsRes] = await Promise.all([
-    cached('orders', () => sb.from('orders').select('id,estado,numero,canal,subcanal,cliente,productos,cantidad,created_at').neq('canal', 'reporte')),
-    cached('stock', () => sb.from('stock').select('id,nombre,cantidad,min_warn,min_crit,categoria,unidad')),
-    sb.from('prod_logs').select('id,modelo,unidades,unidades_falla,created_at').gte('created_at', today + 'T00:00:00'),
-    sb.from('prod_logs').select('unidades')
-  ]);
+  // Skeleton mientras carga
+  $('dash-body').innerHTML = `
+    <div style="animation:dash-fade-up .25s ease">
+      <div class="dash-skel" style="height:190px;margin-bottom:16px"></div>
+      <div class="dash-grid">
+        ${[55,110,165,220].map(d => `<div class="dash-skel" style="height:146px;animation-delay:${d}ms"></div>`).join('')}
+      </div>
+    </div>`;
 
-  const orders = ordersRes.data || [];
-  const stockItems = stockRes.data || [];
-  const prodLogs = prodRes.data || [];
+  // Fetch mínimo — solo id, estado, canal, subcanal
+  const { data: ordersData } = await sb.from('orders')
+    .select('id,estado,canal,subcanal')
+    .neq('canal', 'reporte');
 
-  const byStatus = (s) => orders.filter(o => o.estado === s).length;
-  const critItems = stockItems.filter(s => s.cantidad <= s.min_crit);
-  const warnItems = stockItems.filter(s => s.cantidad > s.min_crit && s.cantidad <= s.min_warn);
-  const todayProd = prodLogs.reduce((acc, l) => acc + (l.unidades || 0), 0);
+  const all = ordersData || [];
+  const active = all.filter(o => !['cancelado','entregado','despachado'].includes(o.estado));
 
-  // Pending production: sum active orders' productos - sum all-time prod_logs
-  const activeOrders = orders.filter(o => !['cancelado','entregado','despachado'].includes(o.estado));
-  let totalOrderedUnits = 0;
-  for (const ord of activeOrders) {
-    const prods = ord.productos || [];
-    totalOrderedUnits += prods.length > 0
-      ? prods.reduce((s, p) => s + parseInt(p.cantidad || 1), 0)
-      : parseInt(ord.cantidad || 0);
-  }
-  const totalProducedAllTime = (allProdLogsRes.data || []).reduce((a, l) => a + (l.unidades || 0), 0);
-  const pendingProd = Math.max(0, totalOrderedUnits - totalProducedAllTime);
+  // Conteo por canal — filtros idénticos a renderCarrierPage()
+  const nCol  = active.filter(o => o.canal === 'mercadolibre' && o.subcanal === 'colecta').length;
+  const nFlex = active.filter(o => o.canal === 'mercadolibre' && o.subcanal === 'flex').length;
+  const nTN   = active.filter(o => o.canal === 'tiendanube').length;
+  const nDist = active.filter(o => o.canal === 'distribuidor').length;
+  const total = nCol + nFlex + nTN + nDist;
 
-  // Carrier split — pedidos activos por canal
-  const countUds = (list) => list.reduce((s, o) => {
-    const prods = o.productos || [];
-    return s + (prods.length > 0 ? prods.reduce((ss, p) => ss + parseInt(p.cantidad || 0), 0) : parseInt(o.cantidad || 0));
-  }, 0);
-  const colectaActivos = activeOrders.filter(o => o.subcanal === 'colecta');
-  const flexActivos    = activeOrders.filter(o => o.subcanal === 'flex');
-  const tnActivos      = activeOrders.filter(o => o.canal === 'tiendanube');
-
-  const distribActivos = activeOrders.filter(o => o.canal === 'distribuidor');
-  const totalUdsActivas = countUds(activeOrders);
+  const CH = [
+    { key:'colecta',      label:'Colecta',       sub:'ML · Retiro 12:00 hs',  n:nCol,  color:'#6366f1', rgb:'99,102,241'  },
+    { key:'flex',         label:'Flex',           sub:'ML · Retiro 14:00 hs',  n:nFlex, color:'#22c55e', rgb:'34,197,94'   },
+    { key:'tiendanube',   label:'Tienda Nube',    sub:'Tienda web propia',      n:nTN,   color:'#3b82f6', rgb:'59,130,246'  },
+    { key:'distribuidor', label:'Distribuidores', sub:'Mayoristas / bulto',     n:nDist, color:'#f59e0b', rgb:'245,158,11'  },
+  ];
 
   $('dash-body').innerHTML = `
-    <!-- ═══ HERO VENTAS ═══ -->
-    <div style="
-      background:#080808;
-      border-radius:20px;
-      padding:32px 36px 28px;
-      margin-bottom:20px;
-      position:relative;
-      overflow:hidden;
-    ">
-      <!-- líneas de cuadrícula decorativas -->
-      <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none"></div>
-      <!-- glow central -->
-      <div style="position:absolute;top:-60px;left:50%;transform:translateX(-50%);width:400px;height:200px;background:radial-gradient(ellipse,rgba(99,102,241,.18) 0%,transparent 70%);pointer-events:none"></div>
-
-      <div style="position:relative;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap">
-
-        <!-- Lado izquierdo: label + número gigante -->
-        <div>
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-            <div style="width:6px;height:6px;border-radius:50%;background:#6366f1;box-shadow:0 0 8px #6366f1,0 0 20px rgba(99,102,241,.6);animation:dash-pulse 2s ease-in-out infinite"></div>
-            <span style="font-size:10px;font-weight:800;letter-spacing:.25em;text-transform:uppercase;color:rgba(255,255,255,.35)">Ventas activas</span>
-          </div>
-          <div style="font-size:clamp(5rem,14vw,9rem);font-weight:900;color:#fff;line-height:.9;letter-spacing:-.06em;font-variant-numeric:tabular-nums;text-shadow:0 0 60px rgba(99,102,241,.3)">
-            ${activeOrders.length}
-          </div>
-          <div style="margin-top:14px;font-size:12px;color:rgba(255,255,255,.3);letter-spacing:.06em;text-transform:uppercase">
-            ${totalUdsActivas} unidades · ${fdLong(new Date())}
-          </div>
+    <!-- ═══ HERO ═══ -->
+    <div style="background:#080808;border-radius:18px;padding:40px 44px 36px;margin-bottom:16px;position:relative;overflow:hidden;animation:dash-fade-up .3s ease both">
+      <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px);background-size:48px 48px;pointer-events:none"></div>
+      <div style="position:absolute;top:-90px;left:50%;transform:translateX(-50%);width:560px;height:280px;background:radial-gradient(ellipse,rgba(99,102,241,.13) 0%,transparent 65%);pointer-events:none"></div>
+      <div style="position:relative">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px">
+          <div style="width:7px;height:7px;border-radius:50%;background:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.2),0 0 14px rgba(99,102,241,.55);animation:dash-pulse 2.4s ease-in-out infinite"></div>
+          <span style="font-size:10px;font-weight:800;letter-spacing:.3em;text-transform:uppercase;color:rgba(255,255,255,.28)">Ventas</span>
         </div>
-
-        <!-- Lado derecho: pills de canal -->
-        <div style="display:flex;flex-direction:column;gap:10px;align-self:center">
-          <div onclick="openCarrierPage('colecta')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:12px 18px;border-radius:12px;background:${colectaActivos.length ? 'rgba(99,102,241,.15)' : 'rgba(255,255,255,.04)'};border:1px solid ${colectaActivos.length ? 'rgba(99,102,241,.35)' : 'rgba(255,255,255,.07)'};transition:background .2s" title="Ver Colecta">
-            <div style="display:flex;align-items:center;gap:8px">
-              <div style="width:8px;height:8px;border-radius:50%;background:${colectaActivos.length ? '#818cf8' : 'rgba(255,255,255,.15)'}${colectaActivos.length ? ';box-shadow:0 0 6px #818cf8' : ''}"></div>
-              <span style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${colectaActivos.length ? '#c7d2fe' : 'rgba(255,255,255,.3)'}">Colecta 12:00</span>
-            </div>
-            <span style="font-size:20px;font-weight:900;color:${colectaActivos.length ? '#fff' : 'rgba(255,255,255,.25)'};font-variant-numeric:tabular-nums">${colectaActivos.length}</span>
-          </div>
-          <div onclick="openCarrierPage('flex')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:12px 18px;border-radius:12px;background:${flexActivos.length ? 'rgba(34,197,94,.12)' : 'rgba(255,255,255,.04)'};border:1px solid ${flexActivos.length ? 'rgba(34,197,94,.3)' : 'rgba(255,255,255,.07)'};transition:background .2s" title="Ver Flex">
-            <div style="display:flex;align-items:center;gap:8px">
-              <div style="width:8px;height:8px;border-radius:50%;background:${flexActivos.length ? '#4ade80' : 'rgba(255,255,255,.15)'}${flexActivos.length ? ';box-shadow:0 0 6px #4ade80' : ''}"></div>
-              <span style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${flexActivos.length ? '#bbf7d0' : 'rgba(255,255,255,.3)'}">Flex 14:00</span>
-            </div>
-            <span style="font-size:20px;font-weight:900;color:${flexActivos.length ? '#fff' : 'rgba(255,255,255,.25)'};font-variant-numeric:tabular-nums">${flexActivos.length}</span>
-          </div>
-          <div onclick="openCarrierPage('tiendanube')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:12px 18px;border-radius:12px;background:${tnActivos.length ? 'rgba(59,130,246,.12)' : 'rgba(255,255,255,.04)'};border:1px solid ${tnActivos.length ? 'rgba(59,130,246,.3)' : 'rgba(255,255,255,.07)'};transition:background .2s" title="Ver Tienda Nube">
-            <div style="display:flex;align-items:center;gap:8px">
-              <div style="width:8px;height:8px;border-radius:50%;background:${tnActivos.length ? '#60a5fa' : 'rgba(255,255,255,.15)'}${tnActivos.length ? ';box-shadow:0 0 6px #60a5fa' : ''}"></div>
-              <span style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${tnActivos.length ? '#bfdbfe' : 'rgba(255,255,255,.3)'}">Tienda Nube</span>
-            </div>
-            <span style="font-size:20px;font-weight:900;color:${tnActivos.length ? '#fff' : 'rgba(255,255,255,.25)'};font-variant-numeric:tabular-nums">${tnActivos.length}</span>
-          </div>
-          <div onclick="openCarrierPage('distribuidor')" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:12px 18px;border-radius:12px;background:${distribActivos.length ? 'rgba(245,158,11,.15)' : 'rgba(255,255,255,.04)'};border:1px solid ${distribActivos.length ? 'rgba(245,158,11,.35)' : 'rgba(255,255,255,.07)'};transition:background .2s" title="Ver Distribuidores">
-            <div style="display:flex;align-items:center;gap:8px">
-              <div style="width:8px;height:8px;border-radius:50%;background:${distribActivos.length ? '#fbbf24' : 'rgba(255,255,255,.15)'}${distribActivos.length ? ';box-shadow:0 0 6px #fbbf24' : ''}"></div>
-              <span style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:${distribActivos.length ? '#fde68a' : 'rgba(255,255,255,.3)'}">Distribuidores</span>
-            </div>
-            <span style="font-size:20px;font-weight:900;color:${distribActivos.length ? '#fff' : 'rgba(255,255,255,.25)'};font-variant-numeric:tabular-nums">${distribActivos.length}</span>
-          </div>
+        <div id="dash-total-num" style="font-size:clamp(4rem,13vw,8rem);font-weight:900;color:#fff;line-height:.88;letter-spacing:-.065em;font-variant-numeric:tabular-nums;text-shadow:0 0 80px rgba(99,102,241,.22)">0</div>
+        <div style="margin-top:18px;font-size:11.5px;color:rgba(255,255,255,.22);letter-spacing:.06em;text-transform:uppercase">
+          pedidos activos · ${fdLong(new Date())}
         </div>
       </div>
     </div>
-    <!-- Fila 2: Estado de producción -->
-    <div class="sg" style="margin-top:12px">
-      <div class="sc" onclick="navigate('ventas')" style="cursor:pointer">
-        <div class="sc-l">Pedidos activos</div>
-        <div class="sc-v">${activeOrders.length}</div>
-      </div>
-      <div class="sc b" onclick="navigate('ventas')" style="cursor:pointer">
-        <div class="sc-l">En producción</div>
-        <div class="sc-v">${byStatus('en_produccion')}</div>
-      </div>
-      <div class="sc ${pendingProd > 0 ? 'r' : 'g'}" onclick="navigate('produccion')" style="cursor:pointer">
-        <div class="sc-l">Pendiente prod.</div>
-        <div class="sc-v">${pendingProd}</div>
-      </div>
-    </div>
-    ${critItems.length > 0 || warnItems.length > 0 ? `
-    <div class="card" style="margin-bottom:16px;padding:18px 20px;cursor:pointer" onclick="navigate('stock')" tabindex="0">
-      <div style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted);margin-bottom:12px">ALERTAS DE STOCK</div>
-      ${critItems.map(s => `
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
-          <div style="display:flex;gap:8px;align-items:center">
-            <span class="tl tr"></span>
-            <span style="font-size:13px;font-weight:600">${esc(s.nombre)}</span>
+
+    <!-- ═══ 4 CARDS ═══ -->
+    <div class="dash-grid">
+      ${CH.map((c, i) => `
+        <div class="dash-ch" onclick="openCarrierPage('${c.key}')" style="animation-delay:${60 + i * 55}ms" role="button" aria-label="Ver ${c.label}">
+          <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${c.color};opacity:${c.n > 0 ? 1 : .2}"></div>
+          <div class="dash-ch-bg" style="position:absolute;inset:0;background:rgba(${c.rgb},.055);opacity:0;transition:opacity .22s ease;pointer-events:none"></div>
+          <div style="position:relative">
+            <div style="font-size:10px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:${c.n > 0 ? c.color : 'var(--ink-muted)'};margin-bottom:14px;opacity:${c.n > 0 ? 1 : .55}">${c.label}</div>
+            <div style="font-size:clamp(2rem,4vw,3.2rem);font-weight:900;color:${c.n > 0 ? 'var(--ink)' : 'var(--ink-muted)'};line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums;margin-bottom:12px">${c.n}</div>
+            <div style="font-size:11px;color:var(--ink-muted);font-weight:500;opacity:.8">${c.sub}</div>
           </div>
-          <span style="font-size:12px;color:var(--red);font-weight:700">${s.cantidad} ${esc(s.unidad)}</span>
-        </div>`).join('')}
-      ${warnItems.map(s => `
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
-          <div style="display:flex;gap:8px;align-items:center">
-            <span class="tl ty"></span>
-            <span style="font-size:13px">${esc(s.nombre)}</span>
-          </div>
-          <span style="font-size:12px;color:var(--ink-muted)">${s.cantidad} ${esc(s.unidad)}</span>
-        </div>`).join('')}
-    </div>` : ''}
-    <div class="card" style="overflow:hidden">
-      <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.dash-rec-arr').style.transform=this.nextElementSibling.style.display==='none'?'rotate(0deg)':'rotate(180deg')"
-        style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:none;border:none;cursor:pointer;font-family:inherit">
-        <div style="display:flex;align-items:center;gap:10px">
-          <span style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted)">PEDIDOS RECIENTES</span>
-          <span style="font-size:11px;font-weight:700;padding:2px 8px;background:var(--paper-dim);border-radius:20px;color:var(--ink-muted)">${orders.length}</span>
         </div>
-        <span class="dash-rec-arr" style="font-size:16px;color:var(--ink-muted);transition:transform .2s;display:inline-block">▾</span>
-      </button>
-      <div style="display:none;padding:0 20px 16px">
-        ${orders.slice(0, 10).map(o => `
-          <div style="display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
-            <div class="onum">${esc(o.numero || o.id?.slice(0,8))}</div>
-            <div style="flex:1;font-size:13px;color:var(--ink-soft)">${esc(o.cliente)}</div>
-            ${statusB(o.estado, o.id)}
-          </div>
-        `).join('') || '<div style="color:var(--ink-muted);font-size:13px;padding:8px 0">Sin pedidos aún.</div>'}
-      </div>
+      `).join('')}
     </div>
   `;
+
+  // Animar el número total desde 0
+  _dashCounter('dash-total-num', total);
+}
+
+function _dashCounter(id, target) {
+  const el = $(id);
+  if (!el) return;
+  if (target === 0) { el.textContent = '0'; return; }
+  const dur = Math.min(500 + target * 6, 1100);
+  const t0 = performance.now();
+  const tick = now => {
+    const p = Math.min((now - t0) / dur, 1);
+    const e = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(target * e);
+    if (p < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
 }
 
 /* ═══════════════════════════════════════════════════════════
