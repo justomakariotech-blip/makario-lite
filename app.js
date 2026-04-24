@@ -723,7 +723,9 @@ async function renderCarrierPage() {
   for (const log of logsCarrier) {
     const key = (log.sku || log.modelo || '').trim();
     if (!key) continue;
-    const target = mapa[key] || mapa[Object.keys(mapa).find(k => k === log.modelo || k.startsWith((log.modelo||'') + '||'))];
+    const target = mapa[key]
+      || mapa[Object.keys(mapa).find(k => k === log.modelo || k.startsWith((log.modelo||'') + '||'))]
+      || mapa[Object.keys(mapa).find(k => mapa[k].modelo === log.modelo)];
     if (!target) continue;
     const uds = parseInt(log.unidades || 0);
     if (_isBlanco(log.variante))     target.blancos += uds;
@@ -803,7 +805,7 @@ async function renderCarrierPage() {
             const faltante  = Math.max(0, f.pedido - producido);
             const surplus   = Math.max(0, producido - f.pedido);
             const faltCell  = surplus > 0
-              ? `<span style="color:var(--green);font-weight:700">+${surplus} stock</span>`
+              ? `<span style="color:var(--amber);font-weight:700" title="Sobreproducción: ${surplus} uds. más de lo pedido">⚠ +${surplus}</span>`
               : faltante > 0 ? `<span style="color:var(--red);font-weight:700;font-size:16px">${faltante}</span>`
               : `<span style="color:var(--green);font-weight:700">✓ 0</span>`;
             return `<tr>
@@ -2994,7 +2996,9 @@ async function renderProduccion() {
     }
     for (const l of logsByC[carrier]) {
       const key=(l.sku||l.modelo||'').trim(); if(!key) continue;
-      const t=mapa[key]||mapa[Object.keys(mapa).find(k=>k===l.modelo||k.startsWith(l.modelo+'||'))];
+      const t=mapa[key]
+        ||mapa[Object.keys(mapa).find(k=>k===l.modelo||k.startsWith(l.modelo+'||'))]
+        ||mapa[Object.keys(mapa).find(k=>mapa[k].modelo===l.modelo)];
       if(!t) continue;
       const u=parseInt(l.unidades||0);
       if(ISBL(l.variante)) t.blancos+=u; else if(ISNG(l.variante)) t.negros+=u; else t.otros+=u;
@@ -3082,9 +3086,12 @@ async function renderProduccion() {
           </tr></thead>
           <tbody>
             ${fRows.map(r=>{
+              const producido=r.blancos+r.negros+r.otros;
+              const surplus=Math.max(0,producido-r.pedido);
               const done=r.faltante===0;
-              const faltCell=done
-                ?`<span style="color:var(--green);font-weight:700">✓ 0</span>`
+              const faltCell=surplus>0
+                ?`<span style="color:var(--amber);font-weight:700" title="Sobreproducción: ${surplus} uds. más de lo pedido">⚠ +${surplus}</span>`
+                :done?`<span style="color:var(--green);font-weight:700">✓ 0</span>`
                 :`<span style="color:var(--red);font-weight:700;font-size:16px">${r.faltante}</span>`;
               const cBadge=`<span style="font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700;color:${CCOLOR[r.carrier]};background:color-mix(in srgb,${CCOLOR[r.carrier]} 12%,transparent)">${CLABEL[r.carrier]||r.carrier}</span>`;
               return `<tr style="${done?'opacity:.5':''}">
@@ -3283,20 +3290,8 @@ async function loadProductCatalogForProd() {
 }
 
 async function loadOrdersForProd() {
-  const { data } = await sb.from('orders')
-    .select('id,numero,cliente')
-    .neq('canal', 'reporte')
-    .in('estado', ['pendiente', 'en_produccion'])
-    .order('created_at', { ascending: false });
-  const sel = $('mp-ord');
-  if (!sel) return;
-  const isPrivate = ['encargado', 'cnc', 'melamina', 'pino', 'embalaje', 'carpinteria'].includes(cu.role);
-  sel.innerHTML = '<option value="">— Producción general —</option>' +
-    (data || []).map(o => {
-      const num = o.numero || o.id.slice(0, 8);
-      const label = isPrivate ? `Pedido ${esc(num)}` : `${esc(num)} — ${esc(o.cliente)}`;
-      return `<option value="${o.id}">${label}</option>`;
-    }).join('');
+  // mp-ord was removed from the form; this is a no-op kept for compat
+  if (!$('mp-ord')) return;
 }
 
 async function submitProd() {
@@ -3340,7 +3335,7 @@ async function submitProd() {
   // El color seleccionado siempre sobreescribe la variante del catálogo
   variante = colorSel;  // "Blanco" o "Negro"
 
-  const fecha = $('mp-date').value;
+  const fecha = $('mp-date').value || new Date().toISOString().split('T')[0];
   const sector = ROLE_SECTOR[cu.role] || 'General';
   const notas = $('mp-notes')?.value.trim() || null;
 
@@ -3363,7 +3358,7 @@ async function submitProd() {
   if (error) { showToast('Error: ' + error.message, 'error'); unlockBtn(btn, '✓ Registrar'); return; }
   unlockBtn(btn, '✓ Registrar');
   const carrierLabel = subcanal === 'colecta' ? 'Colecta' : subcanal === 'flex' ? 'Flex' : subcanal === 'distribuidor' ? 'Distribuidores' : 'Tienda Nube';
-  await logActivity('produccion_registrada', `Producción: ${sku || modelo}${variante ? ' (' + variante + ')' : ''} ×${unidades} — ${sector} — ${carrierLabel}`, orden_id);
+  await logActivity('produccion_registrada', `Producción: ${sku || modelo}${variante ? ' (' + variante + ')' : ''} ×${unidades} — ${sector} — ${carrierLabel}`, null);
   closeM('m-prod');
   showToast(`✓ ${unidades} ${esc(sku || modelo)} (${carrierLabel}) registradas`);
   // Refresh whichever view is currently active
