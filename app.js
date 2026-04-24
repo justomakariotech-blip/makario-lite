@@ -438,16 +438,21 @@ async function showApp() {
   $('url2').textContent = RL[cu.role] || cu.role;
   await buildNav();
   if (!realtimeSetup) { setupRealtime(); realtimeSetup = true; }
-  navigate('produccion');
+  const _landingDefault = { owner:'dashboard', admin:'dashboard' };
+  navigate(_landingDefault[cu.role] || 'produccion');
 }
 
 /* ═══ NAV — estructura simplificada ═══ */
-// Ítem especial: action=true → no navega a una página, ejecuta acción directa
+// Ítem especial: action=true → no navega a página, ejecuta acción directa
 const _NAV_PROD_ITEMS = [
   { id: 'produccion',  ic: '▣', lb: 'Producción' },
   { id: '_reg',        ic: '＋', lb: 'Registrar Producción', action: true },
 ];
 const _NAV_ADMIN_ITEMS = [
+  { id: 'dashboard',   ic: '▦', lb: 'Dashboard' },
+  { sec: 'Producción' },
+  { id: 'produccion',  ic: '▣', lb: 'Producción' },
+  { id: '_reg',        ic: '＋', lb: 'Registrar Producción', action: true },
   { sec: 'Admin' },
   { id: 'historico',   ic: '◫', lb: 'Histórico' },
   { id: 'config',      ic: '◌', lb: 'Administración de Productos' },
@@ -461,8 +466,8 @@ const _NAV_OP_SISTEMA = [
 ];
 
 const NAV = {
-  owner:          [..._NAV_PROD_ITEMS, ..._NAV_ADMIN_ITEMS],
-  admin:          [..._NAV_PROD_ITEMS, ..._NAV_ADMIN_ITEMS],
+  owner:          _NAV_ADMIN_ITEMS,
+  admin:          _NAV_ADMIN_ITEMS,
   encargado:      [..._NAV_PROD_ITEMS, { sec: 'Sistema' }, { id: 'notificaciones', ic: '🔔', lb: 'Notificaciones', bell: true }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }],
   ventas:         [..._NAV_PROD_ITEMS, ..._NAV_OP_SISTEMA],
   cnc:            [..._NAV_PROD_ITEMS, ..._NAV_OP_SISTEMA],
@@ -505,6 +510,7 @@ function navigate(pg) {
   if (navEl) navEl.classList.add('on');
   curPage = pg;
   const renders = {
+    'dashboard':      renderDash,
     'carrier':        renderCarrierPage,
     'produccion':     renderProduccion,
     'historico':      renderHistorico,
