@@ -438,96 +438,41 @@ async function showApp() {
   $('url2').textContent = RL[cu.role] || cu.role;
   await buildNav();
   if (!realtimeSetup) { setupRealtime(); realtimeSetup = true; }
-  const defaults = {
-    owner: 'dashboard', admin: 'dashboard',
-    encargado: 'produccion', ventas: 'ventas',
-    cnc: 'produccion', melamina: 'produccion', pino: 'produccion',
-    embalaje: 'produccion', carpinteria: 'produccion',
-    logistica: 'ventas', marketing: 'notificaciones', marketing_agencia: 'notificaciones'
-  };
-  navigate(defaults[cu.role] || 'dashboard');
+  navigate('produccion');
 }
 
-/* ═══ NAV — todos los roles predefinidos ═══ */
+/* ═══ NAV — estructura simplificada ═══ */
+// Ítem especial: action=true → no navega a una página, ejecuta acción directa
+const _NAV_PROD_ITEMS = [
+  { id: 'produccion',  ic: '▣', lb: 'Producción' },
+  { id: '_reg',        ic: '＋', lb: 'Registrar Producción', action: true },
+];
+const _NAV_ADMIN_ITEMS = [
+  { sec: 'Admin' },
+  { id: 'historico',   ic: '◫', lb: 'Histórico' },
+  { id: 'config',      ic: '◌', lb: 'Administración de Productos' },
+  { sec: 'Sistema' },
+  { id: 'notificaciones', ic: '🔔', lb: 'Notificaciones', bell: true },
+  { id: 'mi-perfil',   ic: '◉', lb: 'Mi Perfil' },
+];
+const _NAV_OP_SISTEMA = [
+  { sec: 'Sistema' },
+  { id: 'mi-perfil',   ic: '◉', lb: 'Mi Perfil' },
+];
+
 const NAV = {
-  owner: [
-    { sec: 'Principal' },
-    { id: 'dashboard', ic: '▦', lb: 'Dashboard' },
-    { sec: 'Operaciones' },
-    { id: 'scanner', ic: '⊡', lb: 'Escaner ML' },
-    { sec: 'Gestión' },
-    { id: 'ventas', ic: '◈', lb: 'Ventas' },
-    { id: 'stock', ic: '◇', lb: 'Stock', alerts: true },
-    { sec: 'Producción' },
-    { id: 'produccion', ic: '▣', lb: 'Producción' },
-    { id: 'historico', ic: '◫', lb: 'Histórico' },
-    { sec: 'Sistema' },
-    { id: 'notificaciones', ic: '🔔', lb: 'Notificaciones', bell: true },
-    { id: 'config', ic: '◌', lb: 'Configuración' },
-    { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
-  ],
-  admin: [
-    { sec: 'Principal' },
-    { id: 'dashboard', ic: '▦', lb: 'Dashboard' },
-    { sec: 'Operaciones' },
-    { id: 'scanner', ic: '⊡', lb: 'Escaner ML' },
-    { sec: 'Gestión' },
-    { id: 'ventas', ic: '◈', lb: 'Ventas' },
-    { id: 'stock', ic: '◇', lb: 'Stock', alerts: true },
-    { sec: 'Producción' },
-    { id: 'produccion', ic: '▣', lb: 'Producción' },
-    { id: 'historico', ic: '◫', lb: 'Histórico' },
-    { sec: 'Sistema' },
-    { id: 'notificaciones', ic: '🔔', lb: 'Notificaciones', bell: true },
-    { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
-  ],
-  encargado: [
-    { id: 'produccion', ic: '▣', lb: 'Producción' },
-    { id: 'scanner', ic: '⊡', lb: 'Escaner ML' },
-    { id: 'stock', ic: '◇', lb: 'Stock' },
-    { sec: 'Sistema' },
-    { id: 'notificaciones', ic: '🔔', lb: 'Notificaciones', bell: true },
-    { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
-  ],
-  ventas: [
-    { sec: 'Gestión' }, { id: 'ventas', ic: '◈', lb: 'Ventas' },
-    { sec: 'Sistema' }, { id: 'notificaciones', ic: '🔔', lb: 'Notificaciones', bell: true }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
-  ],
-  cnc: [
-    { id: 'produccion', ic: '▣', lb: 'Producción' },
-    { id: 'scanner', ic: '⊡', lb: 'QR / Escaner' },
-    { sec: 'Sistema' }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
-  ],
-  melamina: [
-    { id: 'produccion', ic: '▣', lb: 'Producción' },
-    { id: 'scanner', ic: '⊡', lb: 'QR / Escaner' },
-    { sec: 'Sistema' }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
-  ],
-  pino: [
-    { id: 'produccion', ic: '▣', lb: 'Producción' },
-    { id: 'scanner', ic: '⊡', lb: 'QR / Escaner' },
-    { sec: 'Sistema' }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
-  ],
-  embalaje: [
-    { id: 'produccion', ic: '▣', lb: 'Producción' },
-    { id: 'scanner', ic: '⊡', lb: 'QR / Escaner' },
-    { sec: 'Sistema' }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
-  ],
-  carpinteria: [
-    { id: 'produccion', ic: '▣', lb: 'Producción' },
-    { id: 'scanner', ic: '⊡', lb: 'QR / Escaner' },
-    { sec: 'Sistema' }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
-  ],
-  logistica: [
-    { sec: 'Gestión' }, { id: 'ventas', ic: '◈', lb: 'Ventas' }, { id: 'scanner', ic: '⊡', lb: 'Escaner ML' },
-    { sec: 'Sistema' }, { id: 'notificaciones', ic: '🔔', lb: 'Notificaciones', bell: true }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
-  ],
-  marketing: [
-    { sec: 'Sistema' }, { id: 'notificaciones', ic: '🔔', lb: 'Notificaciones', bell: true }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
-  ],
-  marketing_agencia: [
-    { sec: 'Sistema' }, { id: 'notificaciones', ic: '🔔', lb: 'Notificaciones', bell: true }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }
-  ]
+  owner:          [..._NAV_PROD_ITEMS, ..._NAV_ADMIN_ITEMS],
+  admin:          [..._NAV_PROD_ITEMS, ..._NAV_ADMIN_ITEMS],
+  encargado:      [..._NAV_PROD_ITEMS, { sec: 'Sistema' }, { id: 'notificaciones', ic: '🔔', lb: 'Notificaciones', bell: true }, { id: 'mi-perfil', ic: '◉', lb: 'Mi Perfil' }],
+  ventas:         [..._NAV_PROD_ITEMS, ..._NAV_OP_SISTEMA],
+  cnc:            [..._NAV_PROD_ITEMS, ..._NAV_OP_SISTEMA],
+  melamina:       [..._NAV_PROD_ITEMS, ..._NAV_OP_SISTEMA],
+  pino:           [..._NAV_PROD_ITEMS, ..._NAV_OP_SISTEMA],
+  embalaje:       [..._NAV_PROD_ITEMS, ..._NAV_OP_SISTEMA],
+  carpinteria:    [..._NAV_PROD_ITEMS, ..._NAV_OP_SISTEMA],
+  logistica:      [..._NAV_PROD_ITEMS, ..._NAV_OP_SISTEMA],
+  marketing:      [..._NAV_PROD_ITEMS, ..._NAV_OP_SISTEMA],
+  marketing_agencia: [..._NAV_PROD_ITEMS, ..._NAV_OP_SISTEMA],
 };
 
 async function buildNav() {
@@ -542,7 +487,10 @@ async function buildNav() {
     if (item.sec) return `<div class="nav-sec">${item.sec}</div>`;
     let badge = '';
     if (item.bell && notifCount > 0) badge = `<span class="nb" id="notif-bell-badge">${notifCount}</span>`;
-    return `<div class="nav-i" id="nav-${item.id}" onclick="navigate('${item.id}')"><span class="nav-ic">${item.ic}</span><span>${item.lb}</span>${badge}</div>`;
+    const onclick = item.action
+      ? `closeSidebar();openRegisterProd()`
+      : `navigate('${item.id}')`;
+    return `<div class="nav-i" id="nav-${item.id}" onclick="${onclick}"><span class="nav-ic">${item.ic}</span><span>${item.lb}</span>${badge}</div>`;
   }).join('');
 }
 
@@ -557,17 +505,12 @@ function navigate(pg) {
   if (navEl) navEl.classList.add('on');
   curPage = pg;
   const renders = {
-    'dashboard': renderDash,
-    'carrier': renderCarrierPage,
-    'reporte': renderReporte,
-    'ventas': renderVentas,
-    'stock': renderStock,
-    'produccion': renderProduccion,
-    'historico': renderHistorico,
-    'scanner': renderScanner,
+    'carrier':        renderCarrierPage,
+    'produccion':     renderProduccion,
+    'historico':      renderHistorico,
+    'config':         renderConfig,
     'notificaciones': renderNotifs,
-    'config': renderConfig,
-    'mi-perfil': renderMiPerfil
+    'mi-perfil':      renderMiPerfil,
   };
   if (renders[pg]) renders[pg]();
 }
@@ -597,7 +540,7 @@ function openCarrierPage(carrier) {
 
 async function renderCarrierPage() {
   const carrier = _currentCarrier;
-  if (!carrier) { navigate('dashboard'); return; }
+  if (!carrier) { navigate('produccion'); return; }
 
   const isTN   = carrier === 'tiendanube';
   const isDist = carrier === 'distribuidor';
@@ -745,7 +688,7 @@ async function renderCarrierPage() {
   $('carrier-body').innerHTML = `
     <!-- Header -->
     <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px">
-      <button class="btn-ghost" onclick="navigate('dashboard')" style="padding:8px 14px;font-size:13px">← Dashboard</button>
+      <button class="btn-ghost" onclick="navigate('produccion')" style="padding:8px 14px;font-size:13px">← Producción</button>
       <div>
         <div style="font-size:22px;font-weight:800;color:${color}">${label}</div>
         <div style="font-size:13px;color:var(--ink-muted)">${hora}</div>
@@ -2173,7 +2116,7 @@ async function confirmarImportML() {
   closeM('m-excel-import');
   showToast(`✓ ${inserts.length} pedidos importados${skipped > 0 ? ` · ${skipped} ya existían` : ''}`);
   if (curPage === 'carrier') renderCarrierPage();
-  else navigate('dashboard');
+  else navigate('produccion');
 }
 
 async function deleteImportBatch(batchId, totalPedidos) {
@@ -2987,6 +2930,7 @@ async function renderProduccion() {
         <div style="display:flex;gap:6px">
           <button class="btn sm" onclick="openRegisterProd('${presetC}')">+ Registrar</button>
           <button class="btn-ghost sm" onclick="openProdCamScanner()" title="Escanear QR">📷 QR</button>
+          ${['owner','admin'].includes(cu.role) && presetC ? `<button class="btn-ghost sm" onclick="openCarrierPage('${presetC}')" title="Ver detalle de ${CLABEL[presetC]}">↗ Detalle</button>` : ''}
         </div>
       </div>
     </div>
