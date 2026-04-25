@@ -798,7 +798,7 @@ async function renderCarrierPage() {
 
     <!-- Lista de pedidos — colapsable -->
     <div class="card" style="overflow:hidden">
-      <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.carr-arr').style.transform=this.nextElementSibling.style.display==='none'?'rotate(0deg)':'rotate(180deg')"
+      <button onclick="var d=this.nextElementSibling,arr=this.querySelector('.carr-arr'),open=d.style.display==='none';d.style.display=open?'block':'none';arr.style.transform=open?'rotate(180deg)':'rotate(0deg)'"
         style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:none;border:none;cursor:pointer;font-family:inherit">
         <div style="display:flex;align-items:center;gap:10px">
           <span style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted)">PEDIDOS INDIVIDUALES</span>
@@ -863,7 +863,7 @@ async function renderCarrierPage() {
     ${lastClosureArr && lastClosureArr.length > 0 ? `
     <!-- Histórico de cierres -->
     <div class="card" style="overflow:hidden">
-      <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.cl-arr').style.transform=this.nextElementSibling.style.display==='none'?'rotate(0deg)':'rotate(180deg')"
+      <button onclick="var d=this.nextElementSibling,arr=this.querySelector('.cl-arr'),open=d.style.display==='none';d.style.display=open?'block':'none';arr.style.transform=open?'rotate(180deg)':'rotate(0deg)'"
         style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:none;border:none;cursor:pointer;font-family:inherit">
         <div style="display:flex;align-items:center;gap:10px">
           <span style="font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted)">HISTÓRICO DE CIERRES</span>
