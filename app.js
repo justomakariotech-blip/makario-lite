@@ -557,7 +557,7 @@ async function renderCarrierPage() {
   showLoading('carrier-body');
 
   const _baseQ = 'id,numero,ml_order_id,fecha_pedido,productos,cantidad,sku,cliente,estado,created_at,canal,subcanal';
-  const _notCancelled = '("cancelado","entregado","despachado")';
+  const _notCancelled = '("cancelado","entregado","despachado","producido")';
   const ordersQuery = isTN
     ? sb.from('orders').select(_baseQ).eq('canal','tiendanube').not('estado','in',_notCancelled).order('created_at',{ascending:false})
     : isDist
@@ -932,6 +932,19 @@ async function cerrarJornada(carrier) {
 
   if (error) { showToast('Error al cerrar jornada: ' + error.message, 'error'); return; }
 
+  // Marcar todas las órdenes de este carrier (anteriores al cierre) como 'producido'
+  // para que el dashboard no las cuente como pedidos activos del día siguiente
+  const isTN   = carrier === 'tiendanube';
+  const isDist  = carrier === 'distribuidor';
+  let upd = sb.from('orders')
+    .update({ estado: 'producido' })
+    .not('estado', 'in', '("cancelado","entregado","despachado","producido")');
+  if (isTN)        upd = upd.eq('canal', 'tiendanube');
+  else if (isDist) upd = upd.eq('canal', 'distribuidor');
+  else             upd = upd.eq('canal', 'mercadolibre').eq('subcanal', carrier);
+  await upd; // error silencioso — no bloquea el cierre
+
+  invalidateCache('orders');
   await logActivity('jornada_cerrada', `Jornada ${label} cerrada · ${pedidosActivos} pedidos · ${faltanteTotal} faltante arrastrado`);
   showToast(`✓ Jornada ${label} cerrada${faltanteTotal > 0 ? ` · ${faltanteTotal} uds. pasan a la próxima jornada` : ' · Todo producido'}`);
   renderCarrierPage();
@@ -2212,7 +2225,7 @@ async function renderDash() {
     .neq('canal', 'reporte');
 
   const all = ordersData || [];
-  const active = all.filter(o => !['cancelado','entregado','despachado'].includes(o.estado));
+  const active = all.filter(o => !['cancelado','entregado','despachado','producido'].includes(o.estado));
 
   // Conteo por canal — filtros idénticos a renderCarrierPage()
   const nCol  = active.filter(o => o.canal === 'mercadolibre' && o.subcanal === 'colecta').length;
@@ -2825,7 +2838,7 @@ async function renderProduccion() {
   const CCOLOR = { colecta:'var(--blue)', flex:'var(--green)', tiendanube:'var(--blue)', distribuidor:'var(--amber)' };
 
   const [ordersRes, allLogsRes, recentLogsRes, catalogRes, closuresRes] = await Promise.all([
-    sb.from('orders').select('id,sku,cantidad,productos,canal,subcanal,created_at').neq('canal','reporte').not('estado','in','("cancelado","entregado","despachado")'),
+    sb.from('orders').select('id,sku,cantidad,productos,canal,subcanal,created_at').neq('canal','reporte').not('estado','in','("cancelado","entregado","despachado","producido")'),
     sb.from('prod_logs').select('modelo,sku,variante,unidades,subcanal,created_at'),
     sb.from('prod_logs').select('id,modelo,sku,variante,unidades,subcanal,sector,usuario_nombre,created_at').order('created_at',{ascending:false}).limit(30),
     sb.from('product_catalog').select('sku,modelo,variante').eq('es_fabricado',true).eq('activo',true),
