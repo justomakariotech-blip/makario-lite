@@ -2219,19 +2219,25 @@ async function renderDash() {
       </div>
     </div>`;
 
-  // Fetch mínimo — solo id, estado, canal, subcanal
+  // Conteo DIARIO — pedidos importados HOY (hora Argentina UTC-3)
+  // Se resetea automáticamente al cambiar el día, sin necesidad de cerrar jornada
+  const _nowArg  = new Date(Date.now() - 3 * 60 * 60 * 1000); // UTC-3
+  const _todayArg = _nowArg.toISOString().split('T')[0];       // YYYY-MM-DD Argentina
+  const _todayUTC = _todayArg + 'T03:00:00.000Z';              // medianoche Arg en UTC
+
   const { data: ordersData } = await sb.from('orders')
     .select('id,estado,canal,subcanal')
-    .neq('canal', 'reporte');
+    .neq('canal', 'reporte')
+    .neq('estado', 'cancelado')
+    .gte('created_at', _todayUTC);
 
   const all = ordersData || [];
-  const active = all.filter(o => !['cancelado','entregado','despachado','producido'].includes(o.estado));
 
-  // Conteo por canal — filtros idénticos a renderCarrierPage()
-  const nCol  = active.filter(o => o.canal === 'mercadolibre' && o.subcanal === 'colecta').length;
-  const nFlex = active.filter(o => o.canal === 'mercadolibre' && o.subcanal === 'flex').length;
-  const nTN   = active.filter(o => o.canal === 'tiendanube').length;
-  const nDist = active.filter(o => o.canal === 'distribuidor').length;
+  // Conteo por canal del día
+  const nCol  = all.filter(o => o.canal === 'mercadolibre' && o.subcanal === 'colecta').length;
+  const nFlex = all.filter(o => o.canal === 'mercadolibre' && o.subcanal === 'flex').length;
+  const nTN   = all.filter(o => o.canal === 'tiendanube').length;
+  const nDist = all.filter(o => o.canal === 'distribuidor').length;
   const total = nCol + nFlex + nTN + nDist;
 
   const CH = [
@@ -2253,7 +2259,7 @@ async function renderDash() {
         </div>
         <div id="dash-total-num" style="font-size:clamp(4rem,13vw,8rem);font-weight:900;color:#fff;line-height:.88;letter-spacing:-.065em;font-variant-numeric:tabular-nums;text-shadow:0 0 80px rgba(99,102,241,.22)">0</div>
         <div style="margin-top:18px;font-size:11.5px;color:rgba(255,255,255,.22);letter-spacing:.06em;text-transform:uppercase">
-          pedidos activos · ${fdLong(new Date())}
+          ventas del día · ${fdLong(new Date())}
         </div>
       </div>
     </div>
